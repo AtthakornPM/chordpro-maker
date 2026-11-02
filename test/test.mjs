@@ -313,7 +313,19 @@ console.log("\n[11] ค้นหาคอร์ดจากฐานข้อม
   } finally { globalThis.fetch = realFetch; }
 }
 
-console.log("\n[12] ขอบเขตและมารยาท");
+console.log("\n[12] ของที่สั่งซ่อนต้องซ่อนจริง");
+{
+  // เคยพลาดมาแล้ว · .row กับ .modal ตั้ง display: flex ซึ่งชนะกฎ [hidden] ที่เบราว์เซอร์
+  // ให้มาเอง กล่องกลางจอจึงค้างคาหน้าจอและแถวเลือกคีย์โผล่ทั้งที่ยังไม่ได้ค้นอะไร
+  // อ่านพร็อพเพอร์ตี้ .hidden ไม่เจอบั๊กนี้ เพราะมันเป็น true อยู่จริง ต้องดูที่ CSS
+  check("มีกฎบังคับซ่อน", /\[hidden\]\s*\{\s*display:\s*none\s*!important/.test(html), true);
+  // ทุกก้อนที่พึ่งกฎนั้นอยู่ · ถ้าเพิ่มก้อนใหม่ที่ใช้ hidden ก็ยังปลอดภัยเพราะกฎครอบทั้งหน้า
+  for (const id of ["chord-manual", "busk-tune", "ai-tools", "modal", "chord-msg"])
+    check(`${id} ตั้ง hidden ไว้ใน markup`,
+          new RegExp(`id="${id}"[^>]*\\shidden`).test(html), true);
+}
+
+console.log("\n[13] ขอบเขตและมารยาท");
 {
   check("ไม่มีโค้ดของการ์ด BeatBuddy", /BBSF|parseBBS|\.DRM\b/.test(html), false);
   // ดึงทีละเพลงตามที่ผู้ใช้กด ไม่มีโหมดไล่ดูดทั้งเว็บ
