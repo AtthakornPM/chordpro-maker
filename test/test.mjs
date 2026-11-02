@@ -31,6 +31,7 @@ globalThis.document = {
   createElement: () => mk("new"),
   querySelector: () => null, querySelectorAll: () => [] };
 globalThis.window = globalThis;
+globalThis.addEventListener ??= () => {};
 globalThis.localStorage = (() => { const m = new Map(); return {
   getItem: k => (m.has(k) ? m.get(k) : null),
   setItem: (k, v) => { m.set(k, String(v)); },
@@ -47,7 +48,9 @@ const tmp = path.join(here, "_app.mjs");
 fs.writeFileSync(tmp, stub + body + `
 export { md5, crc32, zipStore, sbpSong, sbpFile, sbpBase64, chordFormat, chordPrompt,
          chordTitle, directive, CHORD_RULES, apiRequest, apiReply, apiError,
-         API_MODELS, API_HELP, chordSearchUrl, i18n, i18x, EN, setLang };
+         API_MODELS, API_HELP, chordSearchUrl, i18n, i18x, EN, setLang,
+         buskSlug, buskColIndex, buskMerge, buskKeys, buskChordPro, buskSheet,
+         buskPage, CHORD_SITES, findChordSong, popup, popupClose };
 `);
 const app = await import("./_app.mjs?v=" + Date.now());
 const nodes = globalThis.__nodes;
@@ -247,15 +250,85 @@ console.log("\n[10] ภาษา — ข้อความไทยทุกจ�
   check("สลับกลับเป็นไทยได้คำเดิม", app.i18n("ใส่ชื่อเพลงก่อน"), "ใส่ชื่อเพลงก่อน");
 }
 
-console.log("\n[11] ขอบเขตของแอปนี้ — ไม่มีของที่ตั้งใจไม่เอามา");
+console.log("\n[11] ค้นหาคอร์ดจากฐานข้อมูล — ชื่อเพลง ตำแหน่งคอร์ดบนคำไทย และการกางท่อนซ้ำ");
 {
-  // ไม่ดึงข้อมูลจากเว็บคอร์ดใดๆ · ผู้ใช้เป็นคนหามาวางเอง
-  check("ไม่มีตัวดึงจากเว็บคอร์ด", /busk\.town/i.test(html), false);
+  check("ตัดชื่อเพลงออกจากลิงก์ได้",
+        app.buskSlug("https://busk.town/songs/loso-song?x=1#top"), "loso-song");
+  check("ไม่ใช่ลิงก์ก็คืนตามเดิม", app.buskSlug("  ชื่อเพลง  "), "ชื่อเพลง");
+  // สระบนล่างกับวรรณยุกต์ไทยไม่กินความกว้าง · นับเป็นตัวอักษรตรงๆ แล้วคอร์ดจะเลื่อนผิดทั้งเพลง
+  const LY = "ฉันรักเธอ";
+  check("ช่อง 2 คือตัว ร ไม่ใช่ตัวที่สอง", app.buskColIndex(LY, 2), 3);
+  check("ไม่ใช่การนับตัวอักษรตรงๆ", app.buskColIndex(LY, 2) === 2, false);
+  check("คอร์ดลงตรงช่องที่ตาเห็น", app.buskMerge("  A E", LY), "ฉัน[A]รัก[E]เธอ");
+  // ข้อที่แข็งแรงที่สุด · ถอดวงเล็บออกแล้วต้องได้เนื้อเดิมครบทุกตัวอักษร
+  for (const [cl, ly] of [["  A E", LY], ["A B", "กขค"], ["   Bm7  F#m7 E", "ตั้งใจซ้อมให้ดีที่สุด"]])
+    check(`ถอดคอร์ดออกแล้วได้เนื้อเดิม: ${ly}`,
+          app.buskMerge(cl, ly).replace(/\[[^\]]*\]/g, ""), ly);
+
+  const CTX = {
+    slug: "ทดสอบ",
+    moss: {
+      title: "ทดสอบ",
+      attributes: { authors: [{ name: "วงทดสอบ" }], originalKey: "A", tempo: 67, timesig: "4/4" },
+      sections: [
+        { type: "original", alias: null, name: "Intro", tokens: [{ type: "chord-line" }],
+          trueChordLines: { A: ["| A | D | E | [x2]"], C: ["| C | F | G | [x2]"] },
+          easyChordLines: { A: ["| A | D | E |"], C: ["| C | F | G |"] } },
+        { type: "original", alias: "*", name: "Hook",
+          tokens: [{ type: "chord-line" }, { type: "lyric-line", text: LY }],
+          trueChordLines: { A: ["  A E"], C: ["  C G"] },
+          easyChordLines: { A: ["  A E"], C: ["  C G"] } },
+        { type: "cloned", alias: "*", name: "Hook" },
+      ],
+    },
+  };
+  check("คีย์ที่เลือกได้ครบ", app.buskKeys(CTX), ["A", "C"]);
+  const pro = app.buskChordPro(CTX, "", false);
+  check("หัวไฟล์เป็นชื่อเพลง", pro.split("\n")[0], "{title: ทดสอบ}");
+  check("มีที่มาเป็นคอมเมนต์", pro.includes("# " + app.buskPage("ทดสอบ")), true);
+  check("ท่อนดนตรีเป็นบรรทัดเดียว", pro.includes("[Intro: /] [A /] [D /] [E /] [x2]"), true);
+  check("คอร์ดแทรกในเนื้อถูกตำแหน่ง", pro.includes("ฉัน[A]รัก[E]เธอ"), true);
+  // ท่อนซ้ำในข้อมูลไม่เก็บเนื้อไว้ ต้องกางออกมาเต็ม
+  check("ท่อนซ้ำกางออกมาเต็ม", pro.split("ฉัน[A]รัก[E]เธอ").length - 1, 2);
+  check("เปลี่ยนคีย์แล้วคอร์ดเปลี่ยน", app.buskChordPro(CTX, "C", false).includes("ฉัน[C]รัก[G]เธอ"), true);
+  check("เปลี่ยนคีย์แล้วเนื้อไม่เปลี่ยน", app.buskChordPro(CTX, "C", false).includes(LY.slice(0, 3)), true);
+  // กล่องบนเป็นคอร์ดเหนือเนื้อ คนละแบบกับกล่องล่าง
+  const sheet = app.buskSheet(CTX, "", false);
+  check("ใบคอร์ดไม่มีวงเล็บก้ามปู", /\[[A-G]/.test(sheet), false);
+  check("ใบคอร์ดมีเนื้อร้องครบ", sheet.includes(LY), true);
+
+  // ไล่หาทีละเว็บ · ใช้ของปลอมแทนเน็ต ชุดทดสอบต้องไม่ยิงออกนอกเครื่อง
+  const NEED = ["name", "owns", "find", "keys", "sheet", "pro", "title", "meta", "link"];
+  check("ทุกเว็บในทะเบียนมีครบทุกหน้าที่",
+        app.CHORD_SITES.flatMap(x => NEED.filter(k => x[k] === undefined)), []);
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const hit = decodeURIComponent(String(url)).includes("/songs/ทดสอบ/");
+    return { ok: hit, status: hit ? 200 : 404, json: async () => ({ result: { pageContext: CTX } }) };
+  };
+  try {
+    const hit = await app.findChordSong("ทดสอบ", "");
+    check("เจอแล้วบอกว่าได้มาจากเว็บไหน", hit && hit.site.name, "busk.town");
+    check("ไม่มีก็คืนค่าว่าง", await app.findChordSong("ไม่มีเพลงนี้", ""), null);
+  } finally { globalThis.fetch = realFetch; }
+}
+
+console.log("\n[12] ขอบเขตและมารยาท");
+{
   check("ไม่มีโค้ดของการ์ด BeatBuddy", /BBSF|parseBBS|\.DRM\b/.test(html), false);
-  // ยิงออกนอกเครื่องได้ที่เดียวคือ API ของ AI ที่ผู้ใช้ใส่คีย์เอง
+  // ดึงทีละเพลงตามที่ผู้ใช้กด ไม่มีโหมดไล่ดูดทั้งเว็บ
+  check("ไม่ไล่อ่านแผนผังเว็บ", /sitemap/i.test(html), false);
+  // คนถอดคอร์ดควรได้คนเข้าเว็บกลับไป · เครดิตต้องอยู่ทั้งในแอปและในไฟล์ที่ส่งออก
+  check("มีเครดิตในหน้าแอป", /ข้อมูลคอร์ดและเนื้อร้องจาก[\s\S]{0,120}busk\.town/.test(html), true);
+  check("มีปุ่มกลับไปดูที่เว็บต้นทาง", html.includes("เปิดดูที่เว็บต้นทาง"), true);
+  check("ที่มาติดไปกับไฟล์ที่ส่งออก",
+        app.buskChordPro({ slug: "x", moss: { title: "x", attributes: {}, sections: [] } }, "", false)
+          .includes("busk.town/songs/x"), true);
+  // ยิงออกนอกเครื่องได้เฉพาะเว็บฐานข้อมูล กับ API ของ AI ที่ผู้ใช้ใส่คีย์เอง
+  // www.w3.org เป็นชื่อเนมสเปซของ SVG ในไอคอน ไม่ใช่ปลายทางที่ถูกยิงจริง
   const hosts = [...html.matchAll(/https?:\/\/([a-z0-9.-]+)/gi)].map(m => m[1]);
   const unexpected = [...new Set(hosts)].filter(h =>
-    !/^(api\.openai\.com|api\.anthropic\.com|generativelanguage\.googleapis\.com|www\.google\.com|chatgpt\.com|claude\.ai|gemini\.google\.com|copilot\.microsoft\.com|www\.perplexity\.ai|platform\.openai\.com|console\.anthropic\.com|aistudio\.google\.com|github\.com)$/.test(h));
+    !/^(www\.w3\.org|busk\.town|api\.openai\.com|api\.anthropic\.com|generativelanguage\.googleapis\.com|www\.google\.com|chatgpt\.com|claude\.ai|gemini\.google\.com|copilot\.microsoft\.com|www\.perplexity\.ai|platform\.openai\.com|console\.anthropic\.com|aistudio\.google\.com|github\.com)$/.test(h));
   check("ไม่มีปลายทางแปลกปลอม", unexpected, []);
   check("ไม่มีตัวนับสถิติหรือสคริปต์ภายนอก", /<script[^>]+src=/i.test(html), false);
 }

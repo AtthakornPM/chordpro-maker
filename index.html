@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ChordPro Maker</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%237c5cff'/><circle cx='12' cy='22' r='4.5' fill='%23fff'/><rect x='15' y='6' width='2.6' height='16' fill='%23fff'/><rect x='15' y='6' width='9' height='2.6' fill='%23fff'/></svg>">
 <style>
     :root {
       --bg: #101114; --panel: #191b20; --surface: #0f1115; --text: #e8eaf0;
@@ -62,6 +63,21 @@
     #api-help a { color: var(--accent-soft); }
     #api-help .warn { margin-top: 8px; font-weight: 600; color: var(--warn); }
     #api-help .ok-line { margin-top: 8px; color: var(--ok); font-weight: 600; }
+    .pill { display: inline-flex; align-items: center; gap: 6px; font-size: .9rem;
+      border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px; }
+    #busk-key { min-width: 76px; }
+    #busk-from { overflow-wrap: anywhere; }
+    #busk-from a { color: var(--accent-soft); }
+    /* กล่องกลางจอ ใช้เฉพาะเรื่องที่ต้องแน่ใจว่าผู้ใช้เห็น */
+    .modal { position: fixed; inset: 0; z-index: 80; display: flex;
+      align-items: center; justify-content: center; padding: 20px;
+      background: rgba(0, 0, 0, .55); }
+    .modal-box { max-width: 460px; background: var(--panel); color: var(--text);
+      border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px;
+      box-shadow: 0 18px 50px rgba(0, 0, 0, .45); }
+    #modal-text p { margin: 0 0 12px; line-height: 1.65; }
+    #modal-text p:first-child { font-weight: 600; }
+    .modal-box .row { margin: 0; justify-content: flex-end; }
     footer { margin-top: 22px; text-align: center; }
     footer a { color: var(--accent-soft); }
 </style>
@@ -75,10 +91,11 @@
       <button id="lang-en" type="button">EN</button>
     </span>
   </div>
-  <p class="hint">วางใบคอร์ดที่คุณมีอยู่ แล้วแปลงเป็นฟอร์แมต ChordPro
-    บันทึกเป็น <b>.txt</b> หรือส่งออกเป็น <b>.sbp</b> ที่ SongBookPro นำเข้าได้ทันที ·
-    ทำงานในเบราว์เซอร์ของคุณทั้งหมด ไม่มีการส่งไฟล์ขึ้นเซิร์ฟเวอร์ใคร
-    เปิดจากไฟล์ในเครื่องแบบออฟไลน์ก็ได้</p>
+  <p class="hint">ใส่ชื่อเพลงแล้วกด <b>ค้นหาคอร์ด</b> ถ้าเพลงนั้นมีในฐานข้อมูล
+    จะได้คอร์ดกับเนื้อร้องจัดรูปแบบเสร็จทันที เปลี่ยนคีย์ได้ ไม่ต้องใช้ AI ไม่เสียเงิน ·
+    <b>ถ้าหาไม่เจอ</b> วางใบคอร์ดของคุณเองลงในกล่อง แล้วกด <b>จัดรูปแบบ</b> หรือให้ AI ช่วยเกลา ·
+    จบที่ <b>บันทึก .txt</b> หรือ <b>ส่งออก .sbp</b> ที่ SongBookPro นำเข้าได้ทันที ·
+    ทำงานในเบราว์เซอร์ของคุณทั้งหมด เปิดจากไฟล์ในเครื่องก็ได้</p>
 
   <section class="panel">
     <div class="row">
@@ -88,13 +105,28 @@
       <label class="hint">ศิลปิน
         <input id="chord-artist" type="text" placeholder="ไม่ใส่ก็ได้">
       </label>
-      <button id="chord-manual" class="ghost">ค้นหาเอง</button>
+      <button id="chord-search" class="go">ค้นหาคอร์ด</button>
+      <button id="chord-manual" class="ghost" hidden>ค้นหาเอง</button>
+    </div>
+    <div class="row" id="busk-tune" hidden>
+      <label class="hint">คีย์
+        <select id="busk-key"></select>
+      </label>
+      <label class="pill"><input id="busk-easy" type="checkbox"> คอร์ดง่าย</label>
+      <span class="hint" id="busk-from"></span>
     </div>
 
     <label class="hint" for="chord-src">ใบคอร์ด/เนื้อร้องต้นฉบับ — วางของคุณที่นี่</label>
     <textarea id="chord-src" rows="8" spellcheck="false"
       placeholder="วางข้อความจากใบคอร์ดของคุณที่นี่ · AI จะไม่พิมพ์เนื้อเพลงที่มีลิขสิทธิ์ให้ แต่จัดรูปแบบต้นฉบับที่คุณมีให้ได้"></textarea>
 
+    <div id="ai-tools" hidden>
+    <p class="hint">เนื้อเพลงมีลิขสิทธิ์ AI จะไม่พิมพ์ให้
+      แต่<b>จัดรูปแบบต้นฉบับที่คุณมีอยู่ให้ได้</b> วางใบคอร์ดของคุณในกล่องบน แล้วเลือกทางใดทางหนึ่ง ·
+      <b>ทางสั้น</b> ใส่ API key ของคุณแล้วกด <b>ส่งให้ AI ทำเลย</b> ·
+      <b>ทางยาว</b> ไม่ต้องใช้คีย์ กด <b>สร้างพร้อมท์ AI</b> แล้ว <b>คัดลอกแล้วเปิด AI</b>
+      วางพร้อมท์ในแชท แล้วเอาคำตอบกลับมาวางในกล่องล่าง ·
+      คีย์เก็บไว้ในเบราว์เซอร์เครื่องนี้เท่านั้น ไม่ได้ส่งไปที่อื่นนอกจากเจ้าของ API</p>
     <div class="row">
       <button id="chord-ai" class="go">สร้างพร้อมท์ AI</button>
       <select id="chord-service">
@@ -119,6 +151,7 @@
       <button id="api-send" class="go">ส่งให้ AI ทำเลย</button>
     </div>
     <div class="hint" id="api-help"></div>
+    </div>
 
     <div class="row">
       <button id="chord-fmt" class="ghost">จัดรูปแบบ</button>
@@ -131,8 +164,17 @@
       placeholder="ผลลัพธ์จะมาอยู่ที่นี่ · วางคำตอบจาก AI มาที่นี่แล้วกดจัดรูปแบบก็ได้"></textarea>
   </section>
 
+  <div class="modal" id="modal" hidden>
+    <div class="modal-box" role="alertdialog" aria-modal="true">
+      <div id="modal-text"></div>
+      <div class="row"><button id="modal-ok" class="go">เข้าใจแล้ว</button></div>
+    </div>
+  </div>
+
   <footer class="hint">
-    <span data-keep-lang>ChordPro Maker v1.0 &middot; MIT</span>
+    <span data-keep-lang>ChordPro Maker v1.0 &middot; MIT</span><br>
+    ข้อมูลคอร์ดและเนื้อร้องจาก
+    <a href="https://busk.town" target="_blank" rel="noopener" data-keep-lang>busk.town</a>
   </footer>
 </main>
 <script>
@@ -700,14 +742,236 @@
 // ---- let langUnits = null; ----
   let langUnits = null;
 
+// ---- buskSlug ----
+  function buskSlug(text) {
+    const raw = String(text || "").trim();
+    if (!raw) return "";
+    const hit = raw.match(/busk\.town\/songs\/([^/?#\s]+)/i);
+    if (!hit) return raw;
+    try { return decodeURIComponent(hit[1]); } catch { return hit[1]; }
+  }
+
+// ---- buskArtistSlug ----
+  function buskArtistSlug(name) {
+    return String(name || "").trim().toLowerCase()
+      // ต้องนับ \p{M} ด้วย สระบนล่างกับวรรณยุกต์ไทยเป็น Mark ไม่ใช่ Letter
+      // ถ้าลืม "นัน สุนันทา" จะเหลือ "น-น-ส-น-นทา"
+      .replace(/[^\p{L}\p{N}\p{M}]+/gu, "-").replace(/^-+|-+$/g, "");
+  }
+
+// ---- buskColIndex ----
+  function buskColIndex(text, col) {
+    let seen = 0, i = 0;
+    for (; i < text.length; i++) {
+      if (seen >= col) break;
+      if (!THAI_ZERO.test(text[i])) seen++;
+    }
+    // ห้ามหยุดคาระหว่างพยัญชนะกับสระหรือวรรณยุกต์ของมัน ไม่งั้นคอร์ดไปคั่นกลางพยางค์
+    while (i < text.length && THAI_ZERO.test(text[i])) i++;
+    return i;
+  }
+
+// ---- buskChords ----
+  function buskChords(line) {
+    const out = [];
+    for (const m of String(line || "").matchAll(/\S+/g)) {
+      const word = m[0].replace(/^\|+/, "");
+      if (word) out.push({ col: m.index + (m[0].length - word.length), text: word });
+    }
+    return out;
+  }
+
+// ---- buskMerge ----
+  function buskMerge(chordLine, lyric) {
+    const found = buskChords(chordLine);
+    if (!found.length) return lyric;
+    let out = "", prev = 0;
+    for (const c of found) {
+      const at = Math.max(prev, buskColIndex(lyric, c.col));
+      out += lyric.slice(prev, at) + (/^\[.*\]$/.test(c.text) ? c.text : `[${c.text}]`);
+      prev = at;
+    }
+    return out + lyric.slice(prev);
+  }
+
+// ---- buskKeys ----
+  function buskKeys(ctx) {
+    for (const part of ((ctx && ctx.moss && ctx.moss.sections) || []))
+      if (part.trueChordLines) return Object.keys(part.trueChordLines);
+    return [];
+  }
+
+// ---- buskChordPro ----
+  function buskChordPro(ctx, key, easy) {
+    const moss = (ctx && ctx.moss) || {};
+    const at = moss.attributes || {};
+    const pick = key || at.originalKey || "";
+
+    // ท่อนซ้ำไม่เก็บเนื้อไว้ อ้างถึงท่อนเดิมที่ชื่อกับดอกจันตรงกัน
+    const origin = new Map();
+    for (const part of moss.sections || [])
+      if (part.type !== "cloned") origin.set(`${part.name}|${part.alias || ""}`, part);
+
+    const lines = [`{title: ${moss.title || ""}}`];
+    const by = (at.authors || []).map(a => a.name).join(", ");
+    if (by) lines.push(`{artist: ${by}}`);
+    if (pick) lines.push(`{key: ${pick}}`);
+    if (at.tempo) lines.push(`{tempo: ${at.tempo}}`);
+    if (at.timesig) lines.push(`{time: ${at.timesig}}`);
+    if (ctx && ctx.slug) lines.push(`# ${buskPage(ctx.slug)}`);
+    lines.push("");
+
+    for (const part of moss.sections || []) {
+      const src = part.type === "cloned" ? origin.get(`${part.name}|${part.alias || ""}`) : part;
+      const label = `${part.name}${part.alias ? " " + part.alias : ""}`;
+      if (!src) { lines.push(`{comment: ${label}}`, ""); continue; }
+
+      const bank = (easy && src.easyChordLines ? src.easyChordLines : src.trueChordLines) || {};
+      const rows = bank[pick] || bank[at.originalKey] || [];
+      const tokens = src.tokens || [];
+
+      // ท่อนดนตรีล้วน · กติกาข้อ 2 ให้อยู่บรรทัดเดียว คอร์ดละวงเล็บ ปิดท้ายด้วย /
+      if (!tokens.some(t => t.type === "lyric-line")) {
+        const words = rows.flatMap(r => buskChords(r).map(c => c.text));
+        const chords = words.filter(w => !/^\[.*\]$/.test(w));
+        const marks = words.filter(w => /^\[.*\]$/.test(w));   // ตัวบอกซ้ำอย่าง [x2]
+        lines.push([`[${part.name}: /]`, ...chords.map(c => `[${c} /]`), ...marks].join(" "), "");
+        continue;
+      }
+
+      lines.push(`{comment: ${label}}`);
+      let n = 0, pending = null;
+      for (const t of tokens) {
+        if (t.type === "chord-line") {
+          if (pending !== null) lines.push(pending.trimEnd());   // คอร์ดสองบรรทัดติดกัน
+          pending = rows[n++] || "";
+        } else if (t.type === "lyric-line") {
+          lines.push(pending === null ? (t.text || "") : buskMerge(pending, t.text || ""));
+          pending = null;
+        }
+      }
+      if (pending !== null) lines.push(pending.trimEnd());
+      lines.push("");
+    }
+    return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim() + "\n";
+  }
+
+// ---- buskSheet ----
+  function buskSheet(ctx, key, easy) {
+    const moss = (ctx && ctx.moss) || {};
+    const at = moss.attributes || {};
+    const pick = key || at.originalKey || "";
+
+    const origin = new Map();
+    for (const part of moss.sections || [])
+      if (part.type !== "cloned") origin.set(`${part.name}|${part.alias || ""}`, part);
+
+    const lines = [];
+    for (const part of moss.sections || []) {
+      const src = part.type === "cloned" ? origin.get(`${part.name}|${part.alias || ""}`) : part;
+      lines.push(`${part.name}${part.alias ? " " + part.alias : ""}`);
+      if (!src) { lines.push(""); continue; }
+      const bank = (easy && src.easyChordLines ? src.easyChordLines : src.trueChordLines) || {};
+      const rows = bank[pick] || bank[at.originalKey] || [];
+      let n = 0;
+      for (const t of src.tokens || []) {
+        if (t.type === "chord-line") lines.push((rows[n++] || "").trimEnd());
+        else if (t.type === "lyric-line") lines.push(t.text || "");
+      }
+      lines.push("");
+    }
+    return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim() + "\n";
+  }
+
+// ---- buskGet ----
+  async function buskGet(slug) {
+    if (!slug) return null;
+    const res = await fetch(buskData(slug));
+    if (!res.ok) return null;
+    const body = await res.json();
+    return (body && body.result && body.result.pageContext) || null;
+  }
+
+// ---- buskFind ----
+  async function buskFind(text, artist) {
+    const slug = buskSlug(text);
+    const hit = await buskGet(slug);
+    if (hit) return hit;
+    const by = buskArtistSlug(artist);
+    return by ? await buskGet(`${slug}-${by}`) : null;
+  }
+
+// ---- findChordSong ----
+  async function findChordSong(text, artist) {
+    const owner = CHORD_SITES.find(site => site.owns(text));
+    for (const site of (owner ? [owner] : CHORD_SITES)) {
+      const got = await site.find(text, artist);
+      if (got) return { site, got };
+    }
+    return null;
+  }
+
+// ---- popup ----
+  function popup(...lines) {
+    const box = el("modal");
+    if (!box) return;
+    const body = el("modal-text");
+    if (body) body.replaceChildren(...lines.filter(Boolean).map(text => {
+      const p = document.createElement("p");
+      p.textContent = text;
+      return p;
+    }));
+    box.hidden = false;
+    const ok = el("modal-ok");
+    if (ok && ok.focus) ok.focus();
+  }
+
+// ---- popupClose ----
+  function popupClose() {
+    const box = el("modal");
+    if (box) box.hidden = true;
+  }
+
+// ---- BUSK_HOST ----
+  const BUSK_HOST = "https://busk.town";
+
+// ---- buskPage ----
+  const buskPage = slug => `${BUSK_HOST}/songs/${encodeURIComponent(slug)}`;
+
+// ---- buskData ----
+  const buskData = slug => `${BUSK_HOST}/page-data/songs/${encodeURIComponent(slug)}/page-data.json`;
+
+// ---- THAI_ZERO ----
+  const THAI_ZERO = /[\u0E31\u0E34-\u0E3A\u0E47-\u0E4E]/;
+
+// ---- CHORD_SITES ----
+  const CHORD_SITES = [
+    {
+      name: "busk.town",
+      owns: text => /busk\.town/i.test(String(text || "")),
+      find: buskFind,
+      keys: buskKeys,
+      sheet: buskSheet,                        // คอร์ดเหนือเนื้อ ไว้ตรวจด้วยตา
+      pro: buskChordPro,                       // ChordPro พร้อมส่งออก
+      title: ctx => (ctx.moss || {}).title || "",
+      meta: ctx => (ctx.moss || {}).attributes || {},
+      link: ctx => buskPage(ctx.slug),
+    },
+  ];
+
   const EN = {
     "วางใบคอร์ดที่คุณมีอยู่ แล้วแปลงเป็นฟอร์แมต ChordPro บันทึกเป็น <b>.txt</b> หรือส่งออกเป็น <b>.sbp</b> ที่ SongBookPro นำเข้าได้ทันที · ทำงานในเบราว์เซอร์ของคุณทั้งหมด ไม่มีการส่งไฟล์ขึ้นเซิร์ฟเวอร์ใคร เปิดจากไฟล์ในเครื่องแบบออฟไลน์ก็ได้": "Paste a chord sheet you already have and turn it into ChordPro. Save it as <b>.txt</b>, or export a <b>.sbp</b> that SongBookPro imports directly · everything runs in your own browser, nothing is uploaded anywhere, and it works offline from a local file",
     "ชื่อเพลง": "Song name",
+    "เปิดดูที่เว็บต้นทาง": "Open on the source site",
+    "ข้อมูลคอร์ดและเนื้อร้องจาก": "Chords and lyrics from",
+    "ใส่ชื่อเพลงแล้วกด <b>ค้นหาคอร์ด</b> ถ้าเพลงนั้นมีในฐานข้อมูล จะได้คอร์ดกับเนื้อร้องจัดรูปแบบเสร็จทันที เปลี่ยนคีย์ได้ ไม่ต้องใช้ AI ไม่เสียเงิน · <b>ถ้าหาไม่เจอ</b> วางใบคอร์ดของคุณเองลงในกล่อง แล้วกด <b>จัดรูปแบบ</b> หรือให้ AI ช่วยเกลา · จบที่ <b>บันทึก .txt</b> หรือ <b>ส่งออก .sbp</b> ที่ SongBookPro นำเข้าได้ทันที · ทำงานในเบราว์เซอร์ของคุณทั้งหมด เปิดจากไฟล์ในเครื่องก็ได้": "Type a song name and press <b>Find a chord sheet</b> — if the song is in the database you get chords and lyrics already formatted, in any key, with no AI and no cost · <b>If it misses</b>, paste your own sheet into the box and press <b>Format</b>, or let an AI tidy it up · finish at <b>Save .txt</b> or <b>Export .sbp</b>, which SongBookPro imports directly · everything runs in your own browser, and it works from a local file",
+    "เนื้อเพลงมีลิขสิทธิ์ AI จะไม่พิมพ์ให้ แต่<b>จัดรูปแบบต้นฉบับที่คุณมีอยู่ให้ได้</b> วางใบคอร์ดของคุณในกล่องบน แล้วเลือกทางใดทางหนึ่ง · <b>ทางสั้น</b> ใส่ API key ของคุณแล้วกด <b>ส่งให้ AI ทำเลย</b> · <b>ทางยาว</b> ไม่ต้องใช้คีย์ กด <b>สร้างพร้อมท์ AI</b> แล้ว <b>คัดลอกแล้วเปิด AI</b> วางพร้อมท์ในแชท แล้วเอาคำตอบกลับมาวางในกล่องล่าง · คีย์เก็บไว้ในเบราว์เซอร์เครื่องนี้เท่านั้น ไม่ได้ส่งไปที่อื่นนอกจากเจ้าของ API": "Song lyrics are copyrighted, so an AI will not type them out, but it <b>can format a source you already have</b> · paste your sheet in the box above, then take either route · <b>The short one</b>: enter your API key and press <b>Let the AI do it</b> · <b>The long one</b> needs no key: press <b>Build AI prompt</b>, then <b>Copy and open AI</b>, paste it into the chat and bring the answer back into the lower box · your key stays in this browser and goes nowhere except the API it belongs to",
     "ใบคอร์ด/เนื้อร้องต้นฉบับ — วางของคุณที่นี่": "The original chord sheet — paste yours here",
     "ผลลัพธ์จะมาอยู่ที่นี่ · วางคำตอบจาก AI มาที่นี่แล้วกดจัดรูปแบบก็ได้": "The result lands here — or paste the AI's answer here and press Format",
     "จัดรูปแบบแล้ว": "Formatted",
     "บันทึกแล้ว": "Saved",
     "ส่งออก .sbp แล้ว · เปิดไฟล์นี้ด้วย SongBookPro ได้เลย": "Exported .sbp — open it with SongBookPro",
+    "ข้อมูลเพลง": "Song info",
     "หยุด": "Stopped",
     "เล่น": "Play",
     "ข้าม": "Skip",
@@ -721,9 +985,21 @@
     "คอร์ด/เนื้อร้อง": "Chords / lyrics",
     "ศิลปิน": "Artist",
     "ส่งออก .sbp เข้า SongBookPro": "Export .sbp for SongBookPro",
+    "ค้นหาคอร์ด": "Find a chord sheet",
     "ค้นหาเอง": "Manual search",
+    "เข้าใจแล้ว": "Got it",
+    "หาเพลงนี้ไม่เจอในเว็บฐานข้อมูล": "This song is not in the chord databases",
+    "กดปุ่ม ค้นหาเอง ที่เพิ่งขึ้นมา เพื่อไปหาใบคอร์ดจากเว็บไหนก็ได้ แล้วก๊อปมาวางในกล่องต้นฉบับ": "Press the Manual search button that just appeared to go find a sheet anywhere on the web, then paste it into the original box",
     "คีย์": "Key",
+    "คอร์ดง่าย": "Easy chords",
     "ที่มา": "Source",
+    "กำลังค้น…": "Searching…",
+    "ใส่ชื่อเพลง หรือวางลิงก์หน้าเพลงจากเว็บคอร์ดก่อน": "Type the song name, or paste a chord-site song link first",
+    "หาเพลงนี้ไม่เจอในเว็บฐานข้อมูล · กดค้นหาเองไปหาใบคอร์ดจากเว็บอื่น": "Not in the chord databases — press Manual search to go find a sheet elsewhere",
+    "ต่อเว็บฐานข้อมูลไม่สำเร็จ: ": "Could not reach the chord database: ",
+    "ยิงออกไปไม่ได้ · เช็กอินเทอร์เน็ต หรือเว็บอาจปิดทางไว้ชั่วคราว": "the request never left — check your internet, or the site may be blocking it for now",
+    "ได้ {0} จาก {1} · คีย์ {2} · {3} BPM · {4}": "Got {0} from {1} — key {2}, {3} BPM, {4}",
+    "ข้อความที่แก้ไว้ถูกเขียนทับ": "your edits were overwritten",
     "เปิดหน้าค้นหาแล้ว · เจอใบคอร์ดแล้วคัดลอกมาวางในกล่องบน": "Search opened — when you find a chord sheet, copy it into the box above",
     "ส่งตรงด้วย API": "Send straight over the API",
     "ขอคีย์ได้ที่ ": "Get a key at ",
@@ -1014,6 +1290,111 @@
              new Blob([sbpFile(box.value)], { type: "application/zip" }));
     say(i18n("ส่งออก .sbp แล้ว · เปิดไฟล์นี้ด้วย SongBookPro ได้เลย"), true);
   });
+
+
+  // ================= ค้นหาคอร์ดจากฐานข้อมูล =================
+  {
+    let got = null;      // ข้อมูลเพลงที่ได้มาล่าสุด เปลี่ยนคีย์ได้โดยไม่ต้องยิงซ้ำ
+    let site = null;     // เว็บที่ได้ข้อมูลนั้นมา
+    let made = "";       // ข้อความที่แอปสร้างไว้ ใช้ดูว่าผู้ใช้แก้เองหรือยัง
+
+    const draw = (fresh) => {
+      if (!got || !site) return;
+      const at = site.meta(got);
+      const sel = el("busk-key");
+      if (sel && fresh) {
+        sel.replaceChildren(...site.keys(got).map(k => {
+          const o = document.createElement("option");
+          o.value = k; o.textContent = k;
+          return o;
+        }));
+        sel.value = at.originalKey || "";
+      }
+      const key = (sel && sel.value) || at.originalKey || "";
+      const easy = !!((el("busk-easy") || {}).checked);
+
+      const box = area();
+      const edited = !fresh && box.value.trim() && box.value !== made;
+      made = site.pro(got, key, easy);
+      box.value = made;
+      // กล่องบนเป็นคอร์ดเหนือเนื้อ อ่านง่ายกว่า ไว้กวาดตาตรวจว่าคอร์ดลงตรงพยางค์ไหม
+      const src = el("chord-src");
+      if (src) src.value = site.sheet(got, key, easy);
+
+      // ลิงก์ที่วางมาเพื่อค้นไม่ใช่ชื่อเพลง ปล่อยไว้จะติดไปถึงไฟล์ .sbp
+      const onlyLink = v => CHORD_SITES.some(x => x.owns(v)) && !/\s/.test(String(v).trim());
+      const titleBox = el("chord-title");
+      if (titleBox && (!titleBox.value.trim() || onlyLink(titleBox.value)))
+        titleBox.value = site.title(got);
+      if (el("chord-artist") && !el("chord-artist").value.trim())
+        el("chord-artist").value = (at.authors || []).map(a => a.name).join(", ");
+
+      if (el("busk-tune")) el("busk-tune").hidden = false;
+      if (el("chord-manual")) el("chord-manual").hidden = true;
+
+      // ที่มาโชว์ไว้เสมอ กดกลับไปดูที่เว็บต้นทางได้ · คนถอดคอร์ดควรได้คนเข้าเว็บกลับไปบ้าง
+      const where = el("busk-from");
+      const href = site.link(got);
+      if (where && href) {
+        const link = document.createElement("a");
+        link.href = href; link.target = "_blank"; link.rel = "noopener";
+        link.textContent = i18n("เปิดดูที่เว็บต้นทาง");
+        const lead = document.createElement("span");
+        lead.textContent = i18n("ที่มา") + " ";
+        where.replaceChildren(lead, link);
+      }
+      say(i18x`ได้ ${site.title(got)} จาก ${site.name} · คีย์ ${key} · ${at.tempo || "?"} BPM · ${at.timesig || "?"}`
+          + (edited ? " · " + i18n("ข้อความที่แก้ไว้ถูกเขียนทับ") : ""), true);
+    };
+
+    if (el("chord-search")) el("chord-search").addEventListener("click", async () => {
+      // วางลิงก์หน้าเพลงมาก็ได้ ชัวร์กว่าเดาจากชื่อ
+      const pasted = ((el("chord-src") || {}).value || "").trim();
+      const typed = ((el("chord-title") || {}).value || "").trim();
+      const ask = CHORD_SITES.some(x => x.owns(pasted)) ? pasted : typed;
+      if (!ask) {
+        say(i18n("ใส่ชื่อเพลง หรือวางลิงก์หน้าเพลงจากเว็บคอร์ดก่อน"), false);
+        if (el("chord-title").focus) el("chord-title").focus();
+        return;
+      }
+      const btn = el("chord-search"), was = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = i18n("กำลังค้น…");
+      try {
+        const found = await findChordSong(ask, (el("chord-artist") || {}).value);
+        if (!found) {
+          // ไม่มีในฐานข้อมูล · เปิดทางสำรองให้ แล้วบอกให้เห็นชัดๆ กลางจอ
+          for (const id of ["chord-manual", "ai-tools"])
+            if (el(id)) el(id).hidden = false;
+          say(i18n("หาเพลงนี้ไม่เจอในเว็บฐานข้อมูล · กดค้นหาเองไปหาใบคอร์ดจากเว็บอื่น"), false);
+          popup(i18n("หาเพลงนี้ไม่เจอในเว็บฐานข้อมูล"),
+                i18n("กดปุ่ม ค้นหาเอง ที่เพิ่งขึ้นมา เพื่อไปหาใบคอร์ดจากเว็บไหนก็ได้ แล้วก๊อปมาวางในกล่องต้นฉบับ"));
+          return;
+        }
+        got = found.got;
+        site = found.site;
+        draw(true);
+      } catch (error) {
+        // TypeError ตรงนี้แปลว่ายิงไม่ออกเลย คนละเรื่องกับเว็บตอบว่าไม่มีเพลงนี้
+        say(i18n("ต่อเว็บฐานข้อมูลไม่สำเร็จ: ") + (error instanceof TypeError
+          ? i18n("ยิงออกไปไม่ได้ · เช็กอินเทอร์เน็ต หรือเว็บอาจปิดทางไว้ชั่วคราว")
+          : error.message), false);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = was;
+      }
+    });
+
+    for (const id of ["busk-key", "busk-easy"])
+      if (el(id)) el(id).addEventListener("change", () => draw(false));
+  }
+
+  // กล่องกลางจอ · ปิดได้สามทาง ไม่ให้ค้างจอ
+  if (el("modal-ok")) el("modal-ok").addEventListener("click", popupClose);
+  if (el("modal")) el("modal").addEventListener("click", (event) => {
+    if (event.target === el("modal")) popupClose();
+  });
+  addEventListener("keydown", (event) => { if (event.key === "Escape") popupClose(); });
 
   // ================= ภาษา =================
   Object.assign(I18N, EN);
