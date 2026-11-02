@@ -1,0 +1,1031 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ChordPro Maker</title>
+<style>
+    :root {
+      --bg: #101114; --panel: #191b20; --surface: #0f1115; --text: #e8eaf0;
+      --muted: #9aa3b2; --line: #2b2f38; --accent: #7c5cff; --accent-soft: #a78bfa;
+      --ok: #34d399; --bad: #f87171; --warn: #fbbf24;
+    }
+    @media (prefers-color-scheme: light) {
+      :root:not([data-theme="dark"]) {
+        --bg: #f6f7fa; --panel: #ffffff; --surface: #ffffff; --text: #15171c;
+        --muted: #5b6472; --line: #d9dde5; --accent: #6d4aff; --accent-soft: #5b34d6;
+        --ok: #0f9d6b; --bad: #d14343; --warn: #a06500;
+      }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-size: 15px;
+      font-family: "Segoe UI", "Noto Sans Thai", system-ui, -apple-system, sans-serif;
+      line-height: 1.55; }
+    main { max-width: 900px; margin: 0 auto; padding: 20px 16px 48px; }
+    h1 { font-size: 1.5rem; margin: 0; }
+    h1 small { font-size: .8rem; color: var(--muted); font-weight: 400; }
+    .title-row { display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+    .hint { color: var(--muted); font-size: .9rem; }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+      padding: 16px; margin-top: 16px; }
+    .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
+    .row:first-child { margin-top: 0; }
+    label.hint { display: inline-flex; align-items: center; gap: 6px; }
+    input[type=text], input[type=password], select, textarea {
+      background: var(--surface); color: var(--text); border: 1px solid var(--line);
+      border-radius: 8px; padding: 7px 10px; font: inherit; }
+    input[type=text], input[type=password] { min-width: 170px; }
+    #chord-title { min-width: 220px; }
+    textarea { width: 100%; display: block; resize: vertical; font-size: .9rem;
+      line-height: 1.6; font-family: Consolas, "Noto Sans Thai Mono", monospace;
+      padding: 10px 12px; }
+    #chord-src { margin-bottom: 4px; }
+    textarea:focus, input:focus, select:focus { outline: 2px solid var(--accent);
+      outline-offset: 1px; }
+    button { font: inherit; border-radius: 8px; padding: 7px 14px; cursor: pointer;
+      border: 1px solid var(--line); background: var(--surface); color: var(--text); }
+    button:hover { border-color: var(--accent-soft); }
+    button:disabled { opacity: .55; cursor: default; }
+    button.go { background: var(--accent); border-color: var(--accent); color: #fff;
+      font-weight: 600; }
+    .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px;
+      overflow: hidden; }
+    .seg button { border: 0; border-radius: 0; padding: 5px 11px; background: transparent; }
+    .seg button.on { background: var(--accent); color: #fff; }
+    #chord-msg { margin: 10px 0; font-weight: 600; overflow-wrap: anywhere; }
+    #chord-msg.success { color: var(--ok); }
+    #chord-msg.error { color: var(--bad); }
+    #api-help { margin: -2px 0 12px; }
+    #api-help ol, #api-help ul { margin: 4px 0 0; padding-left: 20px; }
+    #api-help li { margin: 2px 0; }
+    #api-help a { color: var(--accent-soft); }
+    #api-help .warn { margin-top: 8px; font-weight: 600; color: var(--warn); }
+    #api-help .ok-line { margin-top: 8px; color: var(--ok); font-weight: 600; }
+    footer { margin-top: 22px; text-align: center; }
+    footer a { color: var(--accent-soft); }
+</style>
+</head>
+<body>
+<main>
+  <div class="title-row">
+    <h1>ChordPro Maker <small>v1.0</small></h1>
+    <span class="seg" id="lang-pick" data-keep-lang>
+      <button id="lang-th" type="button" class="on">ไทย</button>
+      <button id="lang-en" type="button">EN</button>
+    </span>
+  </div>
+  <p class="hint">วางใบคอร์ดที่คุณมีอยู่ แล้วแปลงเป็นฟอร์แมต ChordPro
+    บันทึกเป็น <b>.txt</b> หรือส่งออกเป็น <b>.sbp</b> ที่ SongBookPro นำเข้าได้ทันที ·
+    ทำงานในเบราว์เซอร์ของคุณทั้งหมด ไม่มีการส่งไฟล์ขึ้นเซิร์ฟเวอร์ใคร
+    เปิดจากไฟล์ในเครื่องแบบออฟไลน์ก็ได้</p>
+
+  <section class="panel">
+    <div class="row">
+      <label class="hint">ชื่อเพลง
+        <input id="chord-title" type="text" placeholder="ชื่อที่จะให้ขึ้นใน SongBookPro">
+      </label>
+      <label class="hint">ศิลปิน
+        <input id="chord-artist" type="text" placeholder="ไม่ใส่ก็ได้">
+      </label>
+      <button id="chord-manual" class="ghost">ค้นหาเอง</button>
+    </div>
+
+    <label class="hint" for="chord-src">ใบคอร์ด/เนื้อร้องต้นฉบับ — วางของคุณที่นี่</label>
+    <textarea id="chord-src" rows="8" spellcheck="false"
+      placeholder="วางข้อความจากใบคอร์ดของคุณที่นี่ · AI จะไม่พิมพ์เนื้อเพลงที่มีลิขสิทธิ์ให้ แต่จัดรูปแบบต้นฉบับที่คุณมีให้ได้"></textarea>
+
+    <div class="row">
+      <button id="chord-ai" class="go">สร้างพร้อมท์ AI</button>
+      <select id="chord-service">
+        <option value="https://chatgpt.com/">ChatGPT</option>
+        <option value="https://claude.ai/new">Claude</option>
+        <option value="https://gemini.google.com/app">Gemini</option>
+        <option value="https://copilot.microsoft.com/">Copilot</option>
+        <option value="https://www.perplexity.ai/">Perplexity</option>
+      </select>
+      <button id="chord-go" class="ghost">คัดลอกแล้วเปิด AI</button>
+    </div>
+    <div class="row">
+      <label class="hint">ส่งตรงด้วย API
+        <select id="api-provider">
+          <option value="openai">OpenAI</option>
+          <option value="anthropic">Anthropic</option>
+          <option value="gemini">Gemini</option>
+        </select>
+      </label>
+      <input id="api-key" type="password" autocomplete="off" placeholder="API key ของคุณ">
+      <input id="api-model" type="text" autocomplete="off" placeholder="ชื่อรุ่น">
+      <button id="api-send" class="go">ส่งให้ AI ทำเลย</button>
+    </div>
+    <div class="hint" id="api-help"></div>
+
+    <div class="row">
+      <button id="chord-fmt" class="ghost">จัดรูปแบบ</button>
+      <button id="chord-copy" class="ghost">คัดลอก</button>
+      <button id="chord-save" class="ghost">บันทึก .txt</button>
+      <button id="chord-sbp" class="go">ส่งออก .sbp เข้า SongBookPro</button>
+    </div>
+    <div id="chord-msg" hidden></div>
+    <textarea id="chord-text" rows="16" spellcheck="false"
+      placeholder="ผลลัพธ์จะมาอยู่ที่นี่ · วางคำตอบจาก AI มาที่นี่แล้วกดจัดรูปแบบก็ได้"></textarea>
+  </section>
+
+  <footer class="hint">
+    <span data-keep-lang>ChordPro Maker v1.0 &middot; MIT</span>
+  </footer>
+</main>
+<script>
+(() => {
+  // ChordPro Maker — ทำไฟล์คอร์ด/เนื้อร้องสำหรับ SongBookPro
+  //
+  // ไฟล์เดียวจบ ไม่มี dependency ไม่มีขั้นตอน build · เปิดจากไฟล์ในเครื่องก็ทำงานได้
+  // ข้อมูลทุกอย่างอยู่ในเบราว์เซอร์ของผู้ใช้ ไม่มีการส่งขึ้นเซิร์ฟเวอร์ใด
+  // ยกเว้นตอนกดส่งให้ AI ซึ่งยิงตรงไปที่เจ้าของ API ด้วยคีย์ของผู้ใช้เอง
+  //
+  // ส่วนที่ใช้ร่วมกับ BeatBuddy Player+ (เครื่องแปลภาษา ตัวเขียน MD5/ZIP
+  // ตัวจัดรูปแบบ ChordPro และตัวต่อ API) ยกมาจากแอปนั้นโดยตรง ไม่ได้เขียนใหม่
+
+// ---- i18n() ----
+  function i18n(x, ctx) {
+    if (lang === "th" || x == null) return x;
+    const hit = I18N[langKey(x, ctx)];
+    return hit === undefined ? (ctx ? i18n(x) : x) : hit;
+  }
+
+// ---- plural() ----
+  function plural(text, vals) {
+    if (text.indexOf("[") < 0) return text;
+    return text.replace(/\[([^\]:]*)(?::(\d+))?\]/g, (m, body, at) => {
+      const v = vals[at === undefined ? 0 : Number(at)];
+      return String(v).trim() === "1" ? "" : body;
+    });
+  }
+
+// ---- i18x() ----
+  function i18x(parts, ...vals) {
+    if (lang === "th") return joinTpl(parts, vals);
+    const key = normKey(parts.map((p, i) => (i < parts.length - 1 ? p + "{" + i + "}" : p)).join(""));
+    const en = I18N[key];
+    if (en === undefined) return joinTpl(parts, vals);
+    return plural(en, vals).replace(/\{(\d+)\}/g, (m, i) => (vals[i] === undefined ? m : vals[i]));
+  }
+
+// ---- collectLangUnits() ----
+  function collectLangUnits() {
+    const out = [];
+    const walk = node => {
+      for (const child of [...node.childNodes]) {
+        if (child.nodeType === 3) {
+          if (THAI_RE.test(child.nodeValue)) out.push({ node: child, as: "text", th: child.nodeValue });
+          continue;
+        }
+        if (child.nodeType !== 1 || LANG_SKIP.has(child.tagName)) continue;
+        if (child.hasAttribute && child.hasAttribute("data-keep-lang")) continue;
+        for (const a of ["title", "placeholder", "aria-label"]) {
+          const v = child.getAttribute && child.getAttribute(a);
+          if (v && THAI_RE.test(v)) out.push({ node: child, as: a, th: v });
+        }
+        if (THAI_RE.test(child.textContent) && child.querySelector && !child.querySelector(LANG_KEEP)) {
+          out.push({ node: child, as: "html", th: child.innerHTML });
+          continue;                                  // เอาทั้งก้อนแล้ว ไม่ต้องลงไปข้างใน
+        }
+        walk(child);
+      }
+    };
+    if (document.body) walk(document.body);
+    return out;
+  }
+
+// ---- applyLang() ----
+  function applyLang() {
+    if (!langUnits) langUnits = collectLangUnits();
+    for (const u of langUnits) {
+      const en = I18N[normKey(u.th)];
+      const now = readUnit(u);
+      if (now !== u.th && now !== en) continue;      // JS เขียนทับไปแล้ว อย่าไปยุ่ง
+      writeUnit(u, lang === "th" ? u.th : (en === undefined ? u.th : en));
+    }
+    if (document.documentElement) document.documentElement.lang = lang;
+    // ส่วนที่ JS วาดเอง ต้องวาดใหม่ถึงจะเปลี่ยนตาม
+    for (const f of [renderApiHelp]) {
+      try { f(); } catch {}
+    }
+    sweepLang();                                  // เก็บที่วาดไว้ก่อนหน้าให้ครบ
+    try { localStorage.setItem("cpm.lang", lang); } catch {}
+  }
+
+// ---- sweepLang() ----
+  function sweepLang() {
+    if (!langPairs) buildLangPairs();
+    const tbl = lang === "en" ? langPairs.toEn : langPairs.toTh;
+    const fill = (dst, order, m) =>
+      plural(dst, order.map((_, i) => m[i + 1])).replace(/\{(\d)\}/g, (x, d) => {
+        const at = order.indexOf(+d);
+        return at < 0 ? x : m[at + 1];
+      });
+
+    const swap = v => {
+      const key = normKey(v);
+      if (!key) return null;
+      let out = tbl.exact[key];
+      if (out === undefined) {
+        out = key;
+        for (const p of tbl.pats) {
+          const m = key.match(p.re);
+          if (m) { out = fill(p.dst, p.order, m); break; }
+        }
+      }
+      // ไล่แทนท่อนย่อยที่ยังเหลือต่อเสมอ · วนไม่เกินสามรอบกันหลุดวน
+      for (let pass = 0; pass < 3; pass++) {
+        const before = out;
+        for (const p of tbl.loose) {
+          p.re.lastIndex = 0;
+          out = out.replace(p.re, (...m) => fill(p.dst, p.order, m));
+        }
+        if (out === before) break;
+      }
+      return out === key ? null : out;
+    };
+    const walk = node => {
+      for (const child of node.childNodes) {
+        if (child.nodeType === 3) {
+          const to = swap(child.nodeValue);
+          if (to !== null && to !== child.nodeValue) child.nodeValue = to;
+          continue;
+        }
+        if (child.nodeType !== 1 || LANG_SKIP.has(child.tagName)) continue;
+        if (child.hasAttribute && child.hasAttribute("data-keep-lang")) continue;
+        walk(child);
+      }
+    };
+    if (document.body) walk(document.body);
+  }
+
+// ---- setLang() ----
+  function setLang(next) {
+    if (next !== "th" && next !== "en") return;
+    lang = next;
+    markLangButtons();
+    applyLang();
+  }
+
+// ---- chordFormat() ----
+  function chordFormat(text) {
+    const out = [];
+    const src = String(text).replace(/\r\n?/g, "\n").split("\n");
+    let pending = null;                 // ชื่อท่อนดนตรีที่รออ่านคอร์ดบรรทัดถัดไป
+
+    const flush = () => {
+      if (!pending) return;
+      out.push(pending.chords.length
+        ? `[${pending.name}: /] ${pending.chords.map(c => `[${c} /]`).join(" ")}`
+        : `[${pending.name}: /]`);
+      pending = null;
+    };
+
+    for (const raw of src) {
+      const line = raw.trim();
+      if (!line) { flush(); out.push(""); continue; }
+
+      if (REPEAT_RE.test(line)) { flush(); out.push(`[${line}]`); continue; }
+
+      // ชื่อท่อนดนตรี อาจมีคอร์ดต่อท้ายในบรรทัดเดียวกันหรือไม่ก็ได้
+      const head = line.replace(/^\[|\]$/g, "").replace(/:\s*\/?\s*$/, "");
+      const words = head.split(/\s+/);
+      if (SECTION_RE.test(words[0]) && words.slice(1).every(w => !w || isChord(w.replace(/^\[|\/?\]$/g, "")))) {
+        flush();
+        pending = { name: words[0].replace(/:$/, ""),
+                    chords: words.slice(1).map(w => w.replace(/^\[|\/?\]$/g, "")).filter(Boolean) };
+        continue;
+      }
+
+      // บรรทัดที่เป็นคอร์ดล้วน ต่อท้ายท่อนดนตรีที่ค้างอยู่
+      const bare = words.map(w => w.replace(/^\[|\/?\]$/g, ""));
+      if (pending && bare.length && bare.every(isChord)) {
+        pending.chords.push(...bare);
+        continue;
+      }
+
+      flush();
+      // ดอกจันหน้าเนื้อร้อง: คงไว้หน้าสุดแล้วเว้นวรรคหนึ่งเคาะ
+      out.push(/^\*\s*/.test(line) ? line.replace(/^\*\s*/, "* ") : line);
+    }
+    flush();
+    return out.join("\n").replace(/\n{3,}/g, "\n\n").trim() + "\n";
+  }
+
+// ---- apiRequest() ----
+  function apiRequest(provider, model, key, prompt) {
+    const use = model || API_MODELS[provider];
+    if (provider === "anthropic") return {
+      url: "https://api.anthropic.com/v1/messages",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": key,
+        "anthropic-version": "2023-06-01",
+        // ถ้าไม่มีหัวนี้ Anthropic จะกันคำขอที่มาจากเบราว์เซอร์ทิ้ง
+        "anthropic-dangerous-direct-browser-access": "true",
+      },
+      body: { model: use, max_tokens: 8000, messages: [{ role: "user", content: prompt }] },
+    };
+    if (provider === "gemini") return {
+      url: `https://generativelanguage.googleapis.com/v1beta/models/${use}:generateContent`,
+      headers: { "content-type": "application/json", "x-goog-api-key": key },
+      body: { contents: [{ parts: [{ text: prompt }] }] },
+    };
+    return {
+      url: "https://api.openai.com/v1/chat/completions",
+      headers: { "content-type": "application/json", Authorization: `Bearer ${key}` },
+      body: { model: use, messages: [{ role: "user", content: prompt }] },
+    };
+  }
+
+// ---- apiReply() ----
+  function apiReply(provider, data) {
+    const join = list => (list || []).map(x => (x && x.text) || "").join("");
+    if (provider === "anthropic") return join(data && data.content).trim();
+    if (provider === "gemini") {
+      const first = data && data.candidates && data.candidates[0];
+      return join(first && first.content && first.content.parts).trim();
+    }
+    const choice = data && data.choices && data.choices[0];
+    return String((choice && choice.message && choice.message.content) || "").trim();
+  }
+
+// ---- apiError() ----
+  function apiError(status, data, text) {
+    const msg = (data && data.error && (data.error.message || data.error.status))
+             || (data && data.message)
+             || String(text || "").slice(0, 200);
+    return `${status}${msg ? " · " + msg : ""}`;
+  }
+
+// ---- renderApiHelp() ----
+  function renderApiHelp() {
+    const box = el("api-help");
+    if (!box) return;
+    const at = API_HELP[(el("api-provider") || {}).value] || API_HELP.openai;
+    const head = document.createElement("div");
+    const link = document.createElement("a");
+    link.href = at.url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";          // อย่าให้หน้าที่เปิดสั่งหน้าต่างแอปได้
+    link.textContent = at.site;
+    const lead = document.createElement("span");
+    lead.textContent = i18n("ขอคีย์ได้ที่ ");
+    head.append(lead, link);
+    const list = document.createElement("ol");
+    for (const step of at.steps.concat(null)) {
+      const li = document.createElement("li");
+      // ข้อสุดท้ายบอกหน้าตาของคีย์ จะได้รู้ว่าคัดลอกมาถูกตัว
+      li.textContent = step ? i18n(step) : i18x`คีย์ขึ้นต้นด้วย ${at.prefix}`;
+      list.append(li);
+    }
+    box.replaceChildren(head, list);
+
+    // ข้อจำกัดที่ควรรู้ก่อนเลือก · เขียนเป็นลักษณะ ไม่ลงตัวเลข เพราะตัวเลขเปลี่ยนบ่อย
+    if (at.limits && at.limits.length) {
+      const title = document.createElement("div");
+      title.className = "warn";
+      title.textContent = i18n("ข้อจำกัด");
+      const caps = document.createElement("ul");
+      for (const line of at.limits) {
+        const li = document.createElement("li");
+        li.textContent = i18n(line);
+        caps.append(li);
+      }
+      box.append(title, caps);
+    }
+
+    // เจ้าที่ต้องจ่ายอยู่ ควรรู้ว่ามีทางลองฟรีอยู่
+    if (!at.free) {
+      const tip = document.createElement("div");
+      tip.className = "ok-line";
+      tip.textContent = i18n("อยากลองโดยไม่เสียเงิน เลือก Gemini ได้ มีชั้นฟรี ไม่ต้องผูกบัตร");
+      box.append(tip);
+    }
+  }
+
+// ---- crc32() ----
+  function crc32(bytes) {
+    let c = 0xffffffff;
+    for (let i = 0; i < bytes.length; i++) c = CRC32_TABLE[(c ^ bytes[i]) & 0xff] ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+  }
+
+// ---- md5() ----
+  function md5(bytes) {
+    const len = bytes.length;
+    const total = (((len + 8) >> 6) + 1) * 64;      // 0x80 + ศูนย์ + ความยาว 8 ไบต์ ให้ลงตัว 64
+    const buf = new Uint8Array(total);
+    buf.set(bytes);
+    buf[len] = 0x80;
+    const view = new DataView(buf.buffer);
+    const bits = len * 8;
+    view.setUint32(total - 8, bits >>> 0, true);
+    view.setUint32(total - 4, Math.floor(bits / 4294967296), true);
+
+    let a0 = 0x67452301, b0 = 0xefcdab89, c0 = 0x98badcfe, d0 = 0x10325476;
+    const rotl = (x, c) => ((x << c) | (x >>> (32 - c))) >>> 0;
+    const words = new Uint32Array(16);
+    for (let off = 0; off < total; off += 64) {
+      for (let i = 0; i < 16; i++) words[i] = view.getUint32(off + i * 4, true);
+      let a = a0, b = b0, c = c0, d = d0;
+      for (let i = 0; i < 64; i++) {
+        let f, g;
+        if (i < 16) { f = (b & c) | (~b & d); g = i; }
+        else if (i < 32) { f = (d & b) | (~d & c); g = (5 * i + 1) % 16; }
+        else if (i < 48) { f = b ^ c ^ d; g = (3 * i + 5) % 16; }
+        else { f = c ^ (b | ~d); g = (7 * i) % 16; }
+        f = (f + a + MD5_K[i] + words[g]) >>> 0;
+        a = d; d = c; c = b;
+        b = (b + rotl(f, MD5_SHIFT[i])) >>> 0;
+      }
+      a0 = (a0 + a) >>> 0; b0 = (b0 + b) >>> 0; c0 = (c0 + c) >>> 0; d0 = (d0 + d) >>> 0;
+    }
+    const hex = n => [0, 8, 16, 24].map(sh => ((n >>> sh) & 0xff).toString(16).padStart(2, "0")).join("");
+    return hex(a0) + hex(b0) + hex(c0) + hex(d0);
+  }
+
+// ---- zipStore() ----
+  function zipStore(files, when = new Date()) {
+    const enc = new TextEncoder();
+    const dosTime = (when.getHours() << 11) | (when.getMinutes() << 5) | (when.getSeconds() >> 1);
+    const dosDate = ((when.getFullYear() - 1980) << 9) | ((when.getMonth() + 1) << 5) | when.getDate();
+    const parts = [], central = [];
+    let offset = 0;
+
+    for (const file of files) {
+      const name = enc.encode(file.name);
+      const body = file.bytes || new Uint8Array(0);
+      const sum = crc32(body);
+
+      const local = new Uint8Array(30 + name.length);
+      const lv = new DataView(local.buffer);
+      lv.setUint32(0, 0x04034b50, true);
+      lv.setUint16(4, 20, true);
+      lv.setUint16(6, 0x0800, true);            // ชื่อไฟล์เป็น UTF-8
+      lv.setUint16(8, 0, true);                 // store
+      lv.setUint16(10, dosTime, true);
+      lv.setUint16(12, dosDate, true);
+      lv.setUint32(14, sum, true);
+      lv.setUint32(18, body.length, true);
+      lv.setUint32(22, body.length, true);
+      lv.setUint16(26, name.length, true);
+      local.set(name, 30);
+      parts.push(local, body);
+
+      const cen = new Uint8Array(46 + name.length);
+      const cv = new DataView(cen.buffer);
+      cv.setUint32(0, 0x02014b50, true);
+      cv.setUint16(4, 20, true);
+      cv.setUint16(6, 20, true);
+      cv.setUint16(8, 0x0800, true);
+      cv.setUint16(10, 0, true);
+      cv.setUint16(12, dosTime, true);
+      cv.setUint16(14, dosDate, true);
+      cv.setUint32(16, sum, true);
+      cv.setUint32(20, body.length, true);
+      cv.setUint32(24, body.length, true);
+      cv.setUint16(28, name.length, true);
+      // รายการที่ลงท้ายด้วย / คือโฟลเดอร์ ต้องติดธง directory ไว้ที่ external attrs
+      cv.setUint32(38, file.name.endsWith("/") ? 0x10 : 0, true);
+      cv.setUint32(42, offset, true);
+      cen.set(name, 46);
+      central.push(cen);
+      offset += local.length + body.length;
+    }
+
+    const dirSize = central.reduce((n, x) => n + x.length, 0);
+    const end = new Uint8Array(22);
+    const ev = new DataView(end.buffer);
+    ev.setUint32(0, 0x06054b50, true);
+    ev.setUint16(8, files.length, true);
+    ev.setUint16(10, files.length, true);
+    ev.setUint32(12, dirSize, true);
+    ev.setUint32(16, offset, true);
+
+    const all = parts.concat(central, [end]);
+    const out = new Uint8Array(all.reduce((n, x) => n + x.length, 0));
+    let at = 0;
+    for (const chunk of all) { out.set(chunk, at); at += chunk.length; }
+    return out;
+  }
+
+// ---- openSide() ----
+  function openSide(url) {
+    if (!url) return;
+    const w = Math.max(480, Math.round((screen.availWidth || 1280) / 2));
+    const h = screen.availHeight || 800;
+    window.open(url, "_blank",
+      `noopener,width=${w},height=${h},left=${(screen.availWidth || 1280) - w},top=0`);
+  }
+
+// ---- chordSearchUrl() ----
+  function chordSearchUrl() {
+    const name = ((el("chord-title") || {}).value || "").trim();
+    if (!name) return "";
+    const by = ((el("chord-artist") || {}).value || "").trim();
+    const q = `${name} ${by} คอร์ด เนื้อเพลง`.replace(/\s+/g, " ").trim();
+    return "https://www.google.com/search?q=" + encodeURIComponent(q);
+  }
+
+// ---- normKey ----
+  const normKey = x => String(x).replace(/\s+/g, " ").trim();
+
+// ---- joinTpl ----
+  const joinTpl = (parts, vals) =>
+    parts.reduce((a, p, i) => a + p + (i < vals.length ? vals[i] : ""), "");
+
+// ---- langKey ----
+  const langKey = (x, ctx) => (ctx ? ctx + "\u241f" : "") + normKey(x);
+
+// ---- CHORD_RE ----
+  const CHORD_RE = /^[A-G](#|b)?(m|maj|min|dim|aug|sus|add|M)?\d*(sus\d|add\d|#5|b5|#9|b9)?(\/[A-G](#|b)?)?$/;
+
+// ---- SECTION_RE ----
+  const SECTION_RE = /^(intro|instru|instrumental|solo|outro|interlude|break|ending)\b/i;
+
+// ---- REPEAT_RE ----
+  const REPEAT_RE = /^\(\s*(\*|ซ้ำ[^)]*|)\s*\)$/;
+
+// ---- isChord ----
+  const isChord = w => CHORD_RE.test(w.replace(/[|]/g, ""));
+
+// ---- CHORD_RULES ----
+  const CHORD_RULES = [
+    '1. แปลงเป็น ChordPro (เนื้อร้อง): นำคอร์ดภาษาอังกฤษไปแทรกไว้ "หน้าพยางค์" ของเนื้อเพลงภาษาไทยให้ตรงตำแหน่งเป๊ะๆ โดยใช้วงเล็บก้ามปู เช่น: "หากว่าเธอ[C]ผ่านมาได้[D]ยิน เพลงนี้"',
+    '2. ท่อนดนตรี (Intro/Instru/Solo/Outro): ต้องจัดรูปแบบให้อยู่ในวงเล็บก้ามปูและมีเครื่องหมาย / ปิดท้ายเสมอ และให้อยู่บรรทัดเดียวกัน (ห้ามเคาะแยกบรรทัด) ตัวอย่างฟอร์แมตที่ต้องพิมพ์ออกมาให้เป๊ะ: "[Intro: /] [G /] [C /] [G /] [C /]" หรือ "[Instru: /] [Em /] [Am /] [D /]"',
+    '3. สัญลักษณ์การซ้ำ (Repeat): จัดการสัญลักษณ์ซ้ำตาม 2 กฎนี้เท่านั้น:',
+    '   - แบบที่ 1 (ดอกจันหน้าเนื้อร้อง): ถ้าในต้นฉบับมีเครื่องหมาย * อยู่หน้าประโยคเนื้อร้อง ให้คงเครื่องหมาย * ไว้หน้าสุด ตามด้วยเว้นวรรค แล้วค่อยใส่คอร์ดและเนื้อร้อง เช่น "* [Am]ก็เลยมาร้อง[D]เพลงบอก"',
+    '   - แบบที่ 2 (ท่อนซ้ำโดดๆ): ถ้าในต้นฉบับเจอสัญลักษณ์บอกให้ย้อนไปเล่นท่อนซ้ำที่อยู่แยกบรรทัด เช่น ( * ) หรือ () หรือ (ซ้ำ *) ให้ใส่ "วงเล็บก้ามปู" ครอบทับเข้าไปด้วยเสมอ เพื่อให้เป็นฟอร์แมตคำสั่ง เช่น "[( * )]" หรือ "[()]"',
+    '4. ซ่อมแซมคำผิด: ถ้าในต้นฉบับสระภาษาไทยอ่านยาก มีลายน้ำบัง หรือถอดมาผิดเพี้ยน ให้คุณใช้ความเข้าใจบริบทของเพลง ซ่อมเนื้อเพลงให้เป็นภาษาไทยที่ถูกต้องสมบูรณ์',
+  ].join("\n");
+
+// ---- API_MODELS ----
+  const API_MODELS = {
+    openai: "chat-latest",
+    anthropic: "claude-sonnet-5-5",
+    gemini: "gemini-3.6-flash",
+  };
+
+// ---- API_HELP ----
+  const API_HELP = {
+    openai: {
+      site: "platform.openai.com/api-keys",
+      url: "https://platform.openai.com/api-keys",
+      prefix: "sk-", free: false,
+      steps: ["ล็อกอินแล้วกด Create new secret key",
+              "คัดลอกคีย์ทันที เพราะหน้าเว็บจะโชว์ให้ดูครั้งเดียว",
+              "ต้องเติมเครดิตในหน้า Billing ก่อน ถึงจะเรียกใช้ได้จริง"],
+      limits: ["ไม่มีชั้นฟรี สร้างคีย์ได้แต่เรียกไม่ได้จนกว่าจะเติมเงิน",
+               "บัญชีใหม่อาจต้องยืนยันเบอร์โทรก่อนสร้างคีย์"],
+    },
+    anthropic: {
+      site: "console.anthropic.com/settings/keys",
+      url: "https://console.anthropic.com/settings/keys",
+      prefix: "sk-ant-", free: false,
+      steps: ["ล็อกอินแล้วกด Create Key",
+              "คัดลอกคีย์ทันที เพราะหน้าเว็บจะโชว์ให้ดูครั้งเดียว",
+              "ต้องเติมเครดิตในหน้า Billing ก่อน ถึงจะเรียกใช้ได้จริง"],
+      limits: ["ไม่มีชั้นฟรี ต้องเติมเครดิตก่อนใช้งาน"],
+    },
+    gemini: {
+      site: "aistudio.google.com/apikey",
+      url: "https://aistudio.google.com/apikey",
+      prefix: "AIza", free: true,
+      steps: ["ล็อกอินด้วยบัญชี Google แล้วกด Create API key",
+              "คัดลอกคีย์ทันที เพราะหน้าเว็บจะโชว์ให้ดูครั้งเดียว",
+              "มีโควตาใช้ฟรีให้ระดับหนึ่ง ไม่ต้องผูกบัตรก็เริ่มได้"],
+      limits: ["ชั้นฟรีมีเพดานทั้งต่อนาทีและต่อวัน ทำรวดเดียวหลายเพลงอาจโดนหยุดชั่วคราว",
+               "รุ่นใหม่ล่าสุดบางรุ่นไม่เปิดให้ชั้นฟรี ถ้าขึ้นว่าไม่มีสิทธิ์ให้เปลี่ยนไปรุ่นที่เบากว่า",
+               "ข้อมูลที่ส่งในชั้นฟรี Google เอาไปใช้พัฒนาบริการได้ · ถ้าไม่อยากให้เป็นแบบนั้นต้องเปิด billing",
+               "เพดานกับรายชื่อรุ่นเปลี่ยนบ่อย ตัวเลขจริงดูที่หน้าทางการ"],
+    },
+  };
+
+// ---- CRC32_TABLE ----
+  const CRC32_TABLE = (() => {
+    const table = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+      table[n] = c >>> 0;
+    }
+    return table;
+  })();
+
+// ---- MD5_SHIFT ----
+  const MD5_SHIFT = [7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22,
+                     5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20,
+                     4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23,
+                     6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21];
+
+// ---- MD5_K ----
+  const MD5_K = (() => {
+    const k = new Uint32Array(64);
+    for (let i = 0; i < 64; i++) k[i] = Math.floor(Math.abs(Math.sin(i + 1)) * 4294967296) >>> 0;
+    return k;
+  })();
+
+// ---- sbpBase64 ----
+  const sbpBase64 = bytes => btoa(String.fromCharCode(...bytes));
+
+// ---- LANG_SKIP ----
+  const LANG_SKIP = new Set(["SCRIPT", "STYLE", "SELECT", "OPTION", "CANVAS"]);
+
+// ---- LANG_KEEP ----
+  const LANG_KEEP = "input,select,textarea,button,canvas,table,details,[id]";
+
+// ---- THAI_RE ----
+  const THAI_RE = /[\u0e00-\u0e7f]/;
+
+// ---- readUnit ----
+  const readUnit = u => u.as === "text" ? u.node.nodeValue
+                      : u.as === "html" ? u.node.innerHTML
+                      : u.node.getAttribute(u.as);
+
+// ---- writeUnit ----
+  const writeUnit = (u, v) => { if (u.as === "text") u.node.nodeValue = v;
+                                else if (u.as === "html") u.node.innerHTML = v;
+                                else u.node.setAttribute(u.as, v); };
+
+// ---- buildLangPairs() ----
+  function buildLangPairs() {
+    const esc = x => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const TH_CH = "\\u0e00-\\u0e7f";
+    // ถัดจากที่จับได้ต้องไม่ใช่อักษรไทย · ถ้าท่อนขึ้นต้นด้วยตัวหนังสือ ข้างหน้าก็ต้องไม่ใช่
+    const fence = (body, startsWithText) =>
+      (startsWithText ? "(?<![" + TH_CH + "])" : "") + body + "(?![" + TH_CH + "])";
+    const make = (from, to, allowLoose) => {
+      const exact = Object.create(null);
+      const pats = [], loose = [];
+      for (const k of Object.keys(from)) {
+        if (k.indexOf("\u241f") >= 0) continue;          // คีย์ที่มีบริบท ข้ามไป
+        const src = from[k], dst = to[k];
+        if (typeof src !== "string" || typeof dst !== "string") continue;
+        if (src.indexOf("{0}") < 0 && !/\{\d\}/.test(src)) {
+          if (!(src in exact)) exact[normKey(src)] = dst;
+          // ประโยคคงที่ก็โผล่กลางก้อนที่ต่อกันหลายท่อนได้ จึงใส่ไว้ในชุดไล่แทนด้วย
+          if (allowLoose && normKey(src).length >= 6)
+            loose.push({ re: new RegExp(fence(esc(normKey(src)), true), "g"), order: [], dst,
+                         weight: normKey(src).length });
+          continue;
+        }
+        const order = [];
+        const body = esc(src).replace(/\\\{(\d)\\\}/g, (m, d) => { order.push(+d); return "([\\s\\S]*?)"; });
+        const weight = src.replace(/\{\d\}/g, "").trim().length;
+        pats.push({ re: new RegExp("^" + body + "$"), order, dst, weight });
+        // ท่อนที่มีตัวหนังสือติดมาพอสมควรเท่านั้น ถึงจะปลอดภัยพอให้จับกลางก้อน
+        const solid = src.replace(/\{\d\}/g, "").trim();
+        if (allowLoose && solid.length >= 4)
+          loose.push({ re: new RegExp(fence(body, !/^\{\d\}/.test(src)), "g"), order, dst, weight });
+      }
+      pats.sort((a, b) => b.weight - a.weight);        // เจาะจงกว่าได้ลองก่อน
+      loose.sort((a, b) => (b.weight || 0) - (a.weight || 0) || b.dst.length - a.dst.length);
+      return { exact, pats, loose };
+    };
+    const th = Object.create(null), en = Object.create(null);
+    for (const k of Object.keys(I18N)) { th[k] = k; en[k] = I18N[k]; }
+    langPairs = { toEn: make(th, en, true), toTh: make(en, th, false) };
+  }
+
+// ---- let lang = "th"; ----
+  let lang = "th";
+
+// ---- let langPairs = null; ----
+  let langPairs = null;
+
+// ---- let langUnits = null; ----
+  let langUnits = null;
+
+  const EN = {
+    "วางใบคอร์ดที่คุณมีอยู่ แล้วแปลงเป็นฟอร์แมต ChordPro บันทึกเป็น <b>.txt</b> หรือส่งออกเป็น <b>.sbp</b> ที่ SongBookPro นำเข้าได้ทันที · ทำงานในเบราว์เซอร์ของคุณทั้งหมด ไม่มีการส่งไฟล์ขึ้นเซิร์ฟเวอร์ใคร เปิดจากไฟล์ในเครื่องแบบออฟไลน์ก็ได้": "Paste a chord sheet you already have and turn it into ChordPro. Save it as <b>.txt</b>, or export a <b>.sbp</b> that SongBookPro imports directly · everything runs in your own browser, nothing is uploaded anywhere, and it works offline from a local file",
+    "ชื่อเพลง": "Song name",
+    "ใบคอร์ด/เนื้อร้องต้นฉบับ — วางของคุณที่นี่": "The original chord sheet — paste yours here",
+    "ผลลัพธ์จะมาอยู่ที่นี่ · วางคำตอบจาก AI มาที่นี่แล้วกดจัดรูปแบบก็ได้": "The result lands here — or paste the AI's answer here and press Format",
+    "จัดรูปแบบแล้ว": "Formatted",
+    "บันทึกแล้ว": "Saved",
+    "ส่งออก .sbp แล้ว · เปิดไฟล์นี้ด้วย SongBookPro ได้เลย": "Exported .sbp — open it with SongBookPro",
+    "หยุด": "Stopped",
+    "เล่น": "Play",
+    "ข้าม": "Skip",
+    "ช่อง": "Channel",
+    "ช่อง {0}": "Channel {0}",
+    "พบ {0} เพลง": "{0} song[s] found",
+    "{0} เพลง": "{0} song[s]",
+    "มาจากไฟล์": "from file",
+    "{0} จาก {1} ช่อง": "{0} of {1} slots",
+    "{0} ไบต์": "{0} byte[s]",
+    "คอร์ด/เนื้อร้อง": "Chords / lyrics",
+    "ศิลปิน": "Artist",
+    "ส่งออก .sbp เข้า SongBookPro": "Export .sbp for SongBookPro",
+    "ค้นหาเอง": "Manual search",
+    "คีย์": "Key",
+    "ที่มา": "Source",
+    "เปิดหน้าค้นหาแล้ว · เจอใบคอร์ดแล้วคัดลอกมาวางในกล่องบน": "Search opened — when you find a chord sheet, copy it into the box above",
+    "ส่งตรงด้วย API": "Send straight over the API",
+    "ขอคีย์ได้ที่ ": "Get a key at ",
+    "ข้อจำกัด": "Limits worth knowing",
+    "อยากลองโดยไม่เสียเงิน เลือก Gemini ได้ มีชั้นฟรี ไม่ต้องผูกบัตร": "To try it without paying, pick Gemini — it has a free tier and needs no card",
+    "ไม่มีชั้นฟรี สร้างคีย์ได้แต่เรียกไม่ได้จนกว่าจะเติมเงิน": "No free tier — you can make a key, but calls fail until you add credit",
+    "บัญชีใหม่อาจต้องยืนยันเบอร์โทรก่อนสร้างคีย์": "A new account may have to verify a phone number before it can make a key",
+    "ไม่มีชั้นฟรี ต้องเติมเครดิตก่อนใช้งาน": "No free tier — add credit before you can use it",
+    "ชั้นฟรีมีเพดานทั้งต่อนาทีและต่อวัน ทำรวดเดียวหลายเพลงอาจโดนหยุดชั่วคราว": "The free tier is capped per minute and per day — a batch of songs may hit a pause",
+    "รุ่นใหม่ล่าสุดบางรุ่นไม่เปิดให้ชั้นฟรี ถ้าขึ้นว่าไม่มีสิทธิ์ให้เปลี่ยนไปรุ่นที่เบากว่า": "Some of the newest models are paid only — if it says no access, switch to a lighter model",
+    "ข้อมูลที่ส่งในชั้นฟรี Google เอาไปใช้พัฒนาบริการได้ · ถ้าไม่อยากให้เป็นแบบนั้นต้องเปิด billing": "On the free tier Google may use what you send to improve its products — turn on billing to avoid that",
+    "เพดานกับรายชื่อรุ่นเปลี่ยนบ่อย ตัวเลขจริงดูที่หน้าทางการ": "Caps and model lists change often — check the official page for the real numbers",
+    "คีย์ขึ้นต้นด้วย {0}": "The key starts with {0}",
+    "ล็อกอินแล้วกด Create new secret key": "Sign in and press Create new secret key",
+    "ล็อกอินแล้วกด Create Key": "Sign in and press Create Key",
+    "ล็อกอินด้วยบัญชี Google แล้วกด Create API key": "Sign in with your Google account and press Create API key",
+    "คัดลอกคีย์ทันที เพราะหน้าเว็บจะโชว์ให้ดูครั้งเดียว": "Copy the key right away — the page shows it only once",
+    "ต้องเติมเครดิตในหน้า Billing ก่อน ถึงจะเรียกใช้ได้จริง": "Add credit under Billing first, or the calls will not go through",
+    "มีโควตาใช้ฟรีให้ระดับหนึ่ง ไม่ต้องผูกบัตรก็เริ่มได้": "There is a free quota to start with, no card needed",
+    "API key ของคุณ": "your API key",
+    "ชื่อรุ่น": "model",
+    "ส่งให้ AI ทำเลย": "Let the AI do it",
+    "กำลังส่ง…": "Sending…",
+    "กำลังส่งให้ AI ทำ…": "Sending it to the AI…",
+    "ใส่ API key ก่อน": "Enter your API key first",
+    "วางใบคอร์ดต้นฉบับก่อน": "Paste your chord sheet first",
+    "AI ตอบกลับไม่สำเร็จ: ": "The AI could not answer: ",
+    "AI ตอบกลับมาว่าง": "The AI sent nothing back",
+    "ต่อ API ไม่สำเร็จ: ": "Could not reach the API: ",
+    "วางข้อความจากใบคอร์ดของคุณที่นี่ · AI จะไม่พิมพ์เนื้อเพลงที่มีลิขสิทธิ์ให้ แต่จัดรูปแบบต้นฉบับที่คุณมีให้ได้": "Paste the text from your own chord sheet here · an AI will not type out copyrighted lyrics, but it will format a source you already have",
+    "ไม่ใส่ก็ได้": "optional",
+    "สร้างพร้อมท์ AI": "Build AI prompt",
+    "คัดลอกแล้วเปิด AI": "Copy and open AI",
+    "ใส่ชื่อเพลงก่อน": "Enter a song name first",
+    "พร้อมท์พร้อมแล้ว": "Prompt ready",
+    "คัดลอกแล้ว · วางในแชท AI ได้เลย": "Copied — paste it into your AI chat",
+    "ชื่อที่จะให้ขึ้นใน SongBookPro": "The name SongBookPro will show",
+    "จัดรูปแบบ": "Format",
+    "คัดลอก": "Copy",
+    "บันทึก .txt": "Save .txt",
+    "ยังไม่มีข้อความ": "Nothing to work on",
+    "คัดลอกแล้ว": "Copied",
+    "เลือกไว้แล้ว กด Ctrl+C": "Selected — press Ctrl+C",
+    "เพลง": "Song",
+    "เพลงที่": "Song #",
+    "ไม่มี": "none",
+    "หลุด": "dropped",
+    "ใช้ได้": "supported",
+    "ได้": "yes",
+    "ทันที": "now"
+  };
+
+  // ================= ของเฉพาะแอปนี้ =================
+  // ต้องประกาศก่อนใครใช้ · renderApiHelp เรียก i18n ตั้งแต่ตอนตั้งต้น
+  const I18N = Object.create(null);
+  const el = id => document.getElementById(id);
+
+  function markLangButtons() {
+    const th = el("lang-th"), en = el("lang-en");
+    if (th) th.className = lang === "th" ? "on" : "";
+    if (en) en.className = lang === "en" ? "on" : "";
+  }
+
+  /** ค่าในวงเล็บปีกกาของ ChordPro เช่น {tempo: 92} */
+  function directive(text, name) {
+    const m = String(text || "").match(new RegExp("\\{\\s*" + name + "\\s*:\\s*([^}]*)\\}", "i"));
+    return m ? m[1].trim() : "";
+  }
+
+  /** ชื่อที่พิมพ์ไว้มาก่อน · ไม่ได้พิมพ์ก็ดูจาก {title:} ในผลลัพธ์ */
+  function chordTitle() {
+    const typed = ((el("chord-title") || {}).value || "").trim();
+    return typed || directive((el("chord-text") || {}).value, "title");
+  }
+
+  // กติกาสี่ข้อเป็นของผู้ใช้ คัดมาตรงตัว ไม่แปลแม้สลับภาษา UI
+  // เพราะมันพูดถึงการวางคอร์ดบนพยางค์ภาษาไทย AI ต้องอ่านเป็นภาษาไทย
+  function chordPrompt() {
+    const name = chordTitle();
+    const by = ((el("chord-artist") || {}).value || "").trim();
+    const src = ((el("chord-src") || {}).value || "").trim();
+    const out = [];
+    out.push(`ช่วยจัดรูปแบบใบคอร์ดเพลง "${name}"${by ? ` ของ ${by}` : ""} ให้เป็นฟอร์แมต ChordPro สำหรับ SongBookPro`);
+    out.push("");
+    out.push("นี่คือใบคอร์ดที่ผมมีอยู่ ให้ใช้ข้อความนี้เป็นต้นฉบับ");
+    out.push("--- เริ่มต้นฉบับ ---");
+    out.push(src);
+    out.push("--- จบต้นฉบับ ---");
+    out.push("");
+    out.push("กติกา");
+    out.push(CHORD_RULES);
+    out.push("");
+    out.push("ทำเลยไม่ต้องถามซ้ำ และตอบกลับมาเฉพาะผลลัพธ์ ไม่ต้องอธิบายอะไรเพิ่ม");
+    return out.join("\n");
+  }
+
+  // โครงของเพลงหนึ่งเพลงในไฟล์ .sbp · ชุดช่องนี้อ่านมาจากไฟล์จริงที่ SongBookPro เขียนเอง
+  // tempo กับ timeSig ดูจากวงเล็บปีกกาในเนื้อ ถ้าไม่มีก็ปล่อยว่าง
+  function sbpSong(content, when = new Date()) {
+    const tempo = directive(content, "tempo");
+    return {
+      Id: 1, SyncId: "", Deleted: false, locked: false, type: 1,
+      name: chordTitle(),
+      subTitle: (((el("chord-artist") || {}).value || "").trim()
+                 || directive(content, "artist")),
+      author: "", content, hash: md5(new TextEncoder().encode(content)),
+      key: 0, KeyShift: 0, Capo: 0,
+      tempo, TempoInt: Number(tempo) || 0,
+      timeSig: directive(content, "time"),
+      Duration: 0, Duration2: 0, SongNumber: 0,
+      Url: "", Copyright: "", NotesText: "", SectionOrder: "",
+      ParentId: 0, HasChildren: false, Rotation: 0, ZoomFactor: 1.0,
+      Chords: null, LinkedAudio: null, vName: null,
+      DisplayParams: {}, _displayParams: "", _folders: "[]", _tags: "[]", Tags: [],
+      ModifiedDateTime: when.toISOString().replace("Z", ""),
+      midiOnLoad: null,
+    };
+  }
+
+  // ไฟล์ .sbp คือ ZIP ที่มีสามรายการ · dataFile.hash คือ MD5 ของ dataFile.txt ทั้งไฟล์
+  function sbpFile(content, when = new Date()) {
+    const doc = { songs: [sbpSong(content, when)], sets: [], folders: [] };
+    const text = new TextEncoder().encode("1.0\r\n" + JSON.stringify(doc));
+    return zipStore([
+      { name: "dataFile.hash", bytes: new TextEncoder().encode(md5(text)) },
+      { name: "dataFile.txt", bytes: text },
+      { name: "pdf/", bytes: new Uint8Array(0) },
+    ], when);
+  }
+
+  const safeName = s => (String(s || "song").replace(/[\\/:*?"<>|]+/g, "_").trim() || "song");
+
+  function download(name, blob) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+
+  function say(text, ok) {
+    const box = el("chord-msg");
+    if (!box) return;
+    box.textContent = text;
+    box.className = ok ? "success" : "error";
+    box.hidden = false;
+  }
+  const clearSay = () => { const box = el("chord-msg"); if (box) box.hidden = true; };
+
+  // ================= ต่อสาย =================
+  const area = () => el("chord-text");
+
+  for (const id of ["chord-title", "chord-artist", "chord-src", "api-key"])
+    if (el(id)) el(id).addEventListener("input", clearSay);
+
+  {
+    // คีย์กับชื่อรุ่นแยกจำรายเจ้า สลับไปมาแล้วไม่ต้องพิมพ์ใหม่
+    const prov = () => (el("api-provider") || {}).value || "openai";
+    const load = () => {
+      const p = prov();
+      try {
+        if (el("api-key")) el("api-key").value = localStorage.getItem("cpm.api.key." + p) || "";
+        if (el("api-model")) el("api-model").value = localStorage.getItem("cpm.api.model." + p) || "";
+      } catch {}
+      if (el("api-model")) el("api-model").placeholder = API_MODELS[p];
+      renderApiHelp();
+    };
+    const keep = () => {
+      const p = prov();
+      try {
+        localStorage.setItem("cpm.api.key." + p, ((el("api-key") || {}).value || "").trim());
+        localStorage.setItem("cpm.api.model." + p, ((el("api-model") || {}).value || "").trim());
+      } catch {}
+    };
+    if (el("api-provider")) el("api-provider").addEventListener("change", load);
+    for (const id of ["api-key", "api-model"])
+      if (el(id)) el(id).addEventListener("change", keep);
+    load();
+  }
+
+  if (el("chord-manual")) el("chord-manual").addEventListener("click", () => {
+    const url = chordSearchUrl();
+    if (!url) {
+      say(i18n("ใส่ชื่อเพลงก่อน"), false);
+      if (el("chord-title").focus) el("chord-title").focus();
+      return;
+    }
+    openSide(url);
+    say(i18n("เปิดหน้าค้นหาแล้ว · เจอใบคอร์ดแล้วคัดลอกมาวางในกล่องบน"), true);
+  });
+
+  if (el("chord-ai")) el("chord-ai").addEventListener("click", () => {
+    if (!((el("chord-title") || {}).value || "").trim()) {
+      say(i18n("ใส่ชื่อเพลงก่อน"), false);
+      if (el("chord-title").focus) el("chord-title").focus();
+      return;
+    }
+    if (!((el("chord-src") || {}).value || "").trim()) {
+      say(i18n("วางใบคอร์ดต้นฉบับก่อน"), false);
+      if (el("chord-src").focus) el("chord-src").focus();
+      return;
+    }
+    area().value = chordPrompt();          // พร้อมท์ไปอยู่ในกล่อง อ่านและแก้ได้ก่อนส่ง
+    say(i18n("พร้อมท์พร้อมแล้ว"), true);
+  });
+
+  if (el("chord-go")) el("chord-go").addEventListener("click", async () => {
+    const box = area();
+    if (!box.value.trim()) { say(i18n("ยังไม่มีข้อความ"), false); return; }
+    let copied = true;
+    try { await navigator.clipboard.writeText(box.value); }
+    catch { copied = false; box.select(); }
+    openSide((el("chord-service") || {}).value);
+    say(i18n(copied ? "คัดลอกแล้ว · วางในแชท AI ได้เลย" : "เลือกไว้แล้ว กด Ctrl+C"), true);
+  });
+
+  if (el("api-send")) el("api-send").addEventListener("click", async () => {
+    if (!((el("chord-title") || {}).value || "").trim()) {
+      say(i18n("ใส่ชื่อเพลงก่อน"), false);
+      if (el("chord-title").focus) el("chord-title").focus();
+      return;
+    }
+    if (!((el("chord-src") || {}).value || "").trim()) {
+      say(i18n("วางใบคอร์ดต้นฉบับก่อน"), false);
+      if (el("chord-src").focus) el("chord-src").focus();
+      return;
+    }
+    const key = ((el("api-key") || {}).value || "").trim();
+    if (!key) { say(i18n("ใส่ API key ก่อน"), false); return; }
+    const prov = (el("api-provider") || {}).value || "openai";
+    const btn = el("api-send"), was = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = i18n("กำลังส่ง…");
+    say(i18n("กำลังส่งให้ AI ทำ…"), true);
+    try {
+      const req = apiRequest(prov, ((el("api-model") || {}).value || "").trim(), key, chordPrompt());
+      const res = await fetch(req.url, {
+        method: "POST", headers: req.headers, body: JSON.stringify(req.body) });
+      const raw = await res.text();
+      let data = null;
+      try { data = JSON.parse(raw); } catch {}
+      if (!res.ok) { say(i18n("AI ตอบกลับไม่สำเร็จ: ") + apiError(res.status, data, raw), false); return; }
+      const out = apiReply(prov, data);
+      if (!out) { say(i18n("AI ตอบกลับมาว่าง"), false); return; }
+      area().value = chordFormat(out);
+      say(i18n("เสร็จแล้ว · ตรวจดูแล้วบันทึกได้เลย"), true);
+    } catch (error) {
+      say(i18n("ต่อ API ไม่สำเร็จ: ") + error.message, false);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = was;
+    }
+  });
+
+  if (el("chord-fmt")) el("chord-fmt").addEventListener("click", () => {
+    const box = area();
+    // ยังไม่มีอะไรในกล่องล่าง ก็จัดจากต้นฉบับให้เลย จะได้ไม่ต้องก๊อปไปมา
+    const from = box.value.trim() || ((el("chord-src") || {}).value || "");
+    if (!from.trim()) { say(i18n("ยังไม่มีข้อความ"), false); return; }
+    box.value = chordFormat(from);
+    say(i18n("จัดรูปแบบแล้ว"), true);
+  });
+
+  if (el("chord-copy")) el("chord-copy").addEventListener("click", async () => {
+    const box = area();
+    if (!box.value.trim()) { say(i18n("ยังไม่มีข้อความ"), false); return; }
+    try { await navigator.clipboard.writeText(box.value); say(i18n("คัดลอกแล้ว"), true); }
+    catch { box.select(); say(i18n("เลือกไว้แล้ว กด Ctrl+C"), true); }
+  });
+
+  if (el("chord-save")) el("chord-save").addEventListener("click", () => {
+    const box = area();
+    if (!box.value.trim()) { say(i18n("ยังไม่มีข้อความ"), false); return; }
+    download(safeName(chordTitle()) + ".txt",
+             new Blob([box.value], { type: "text/plain;charset=utf-8" }));
+    say(i18n("บันทึกแล้ว"), true);
+  });
+
+  if (el("chord-sbp")) el("chord-sbp").addEventListener("click", () => {
+    const box = area();
+    if (!box.value.trim()) { say(i18n("ยังไม่มีข้อความ"), false); return; }
+    if (!chordTitle()) {
+      say(i18n("ใส่ชื่อเพลงก่อน"), false);
+      if (el("chord-title").focus) el("chord-title").focus();
+      return;
+    }
+    download(safeName(chordTitle()) + ".sbp",
+             new Blob([sbpFile(box.value)], { type: "application/zip" }));
+    say(i18n("ส่งออก .sbp แล้ว · เปิดไฟล์นี้ด้วย SongBookPro ได้เลย"), true);
+  });
+
+  // ================= ภาษา =================
+  Object.assign(I18N, EN);
+  if (el("lang-th")) el("lang-th").addEventListener("click", () => setLang("th"));
+  if (el("lang-en")) el("lang-en").addEventListener("click", () => setLang("en"));
+  {
+    let saved = "th";
+    try { saved = localStorage.getItem("cpm.lang") || "th"; } catch {}
+    setLang(saved === "en" ? "en" : "th");
+  }
+
+})();
+</script>
+</body>
+</html>
