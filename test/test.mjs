@@ -50,7 +50,8 @@ export { md5, crc32, zipStore, sbpSong, sbpFile, sbpBase64, chordFormat, chordPr
          chordTitle, directive, CHORD_RULES, apiRequest, apiReply, apiError,
          API_MODELS, API_HELP, chordSearchUrl, i18n, i18x, EN, setLang,
          buskSlug, buskColIndex, buskMerge, buskKeys, buskChordPro, buskSheet,
-         buskPage, CHORD_SITES, findChordSong, popup, popupClose };
+         buskPage, CHORD_SITES, findChordSong, popup, popupClose,
+         sbpKeyNo, sbpStripKey, sbpBody };
 `);
 const app = await import("./_app.mjs?v=" + Date.now());
 const nodes = globalThis.__nodes;
@@ -181,6 +182,37 @@ console.log("\n[7] เพลงหนึ่งเพลงในไฟล์ .sb
   g("chord-artist").value = "";
   check("ไม่ได้พิมพ์ศิลปินก็ดูจากในเนื้อ",
         app.sbpSong("{artist: จากในเนื้อ}\n").subTitle, "จากในเนื้อ");
+}
+
+console.log("\n[7b] คีย์ — ต้องไปอยู่ในช่องที่ SongBookPro อ่านจริง ไม่ใช่บรรทัดในเนื้อ");
+{
+  // เลขพวกนี้ถอดมาจากไฟล์จริงที่ SongBookPro เขียนเอง · ไล่ทีละครึ่งเสียงโดย A = 0
+  for (const [name, no] of [["A", 0], ["Bb", 1], ["B", 2], ["C", 3], ["C#", 4], ["D", 5],
+                            ["D#", 6], ["E", 7], ["F", 8], ["F#", 9], ["G", 10], ["G#", 11]])
+    check(`คีย์ ${name} คือเลข ${no}`, app.sbpKeyNo(name), no);
+  check("แฟลตกับชาร์ปเสียงเดียวกันได้เลขเดียวกัน",
+        [app.sbpKeyNo("Bb"), app.sbpKeyNo("Eb")], [app.sbpKeyNo("A#"), app.sbpKeyNo("D#")]);
+  check("ชื่อคีย์ที่มีหางต่อท้ายก็อ่านรากได้", app.sbpKeyNo("Am"), 0);
+  check("อ่านไม่ออกคืนศูนย์", app.sbpKeyNo("ไม่ใช่คีย์"), 0);
+
+  // บรรทัด {key:} ไม่ติดไปในไฟล์ · โปรแกรมไม่ได้อ่าน และไม่ขยับตอนเปลี่ยนคีย์
+  check("ตัดบรรทัดคีย์ออก",
+        app.sbpStripKey("{title: ก}\n{key: E}\n{tempo: 90}\n"), "{title: ก}\n{tempo: 90}\n");
+  check("ไม่ลบบรรทัดอื่นที่บังเอิญมีคำว่า key",
+        app.sbpStripKey("{comment: Key change}\n").trim(), "{comment: Key change}");
+
+  nodes.clear();
+  globalThis.document.getElementById("chord-title").value = "ทะเลใจ";
+  const body = "{title: ทะเลใจ}\n{key: E}\n{tempo: 90}\n{time: 4/4}\n\n[E]เนื้อ\n";
+  const song = app.sbpSong(body);
+  check("คีย์ไปอยู่ในช่องของมัน", song.key, 7);
+  check("เนื้อที่เก็บไม่มีบรรทัดคีย์แล้ว", /\{key:/i.test(song.content), false);
+  check("ส่วนที่เหลือยังอยู่ครบ",
+        song.content.includes("{tempo: 90}") && song.content.includes("[E]เนื้อ"), true);
+  // hash ต้องตรงกับเนื้อที่เก็บจริง ไม่ใช่เนื้อก่อนตัด ไม่งั้นไฟล์จะถือว่าเพี้ยน
+  check("hash ตรงกับเนื้อที่เก็บ", song.hash, app.md5(enc(song.content)));
+  check("ยังไม่ได้เปลี่ยนคีย์ KeyShift เป็นศูนย์", song.KeyShift, 0);
+  check("ไม่มีบรรทัดคีย์ก็ยังเขียนได้", app.sbpSong("{title: ก}\n").key, 0);
 }
 
 console.log("\n[8] ไฟล์ .sbp ทั้งไฟล์ — เป็น ZIP ที่มีสามรายการ");

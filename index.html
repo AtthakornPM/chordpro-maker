@@ -944,6 +944,15 @@
     if (box) box.hidden = true;
   }
 
+// ---- sbpKeyNo ----
+  function sbpKeyNo(name) {
+    const hit = String(name || "").trim().match(/^([A-G])([#b]?)/);
+    if (!hit) return 0;
+    const pitch = SBP_FLATS[hit[1] + hit[2]] || hit[1] + hit[2];
+    const at = SBP_KEYS.indexOf(pitch);
+    return at < 0 ? 0 : at;
+  }
+
 // ---- BUSK_HOST ----
   const BUSK_HOST = "https://busk.town";
 
@@ -970,6 +979,18 @@
       link: ctx => buskPage(ctx.slug),
     },
   ];
+
+// ---- SBP_KEYS ----
+  const SBP_KEYS = ["A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"];
+
+// ---- SBP_FLATS ----
+  const SBP_FLATS = { Bb: "A#", Db: "C#", Eb: "D#", Gb: "F#", Ab: "G#" };
+
+// ---- sbpStripKey ----
+  const sbpStripKey = text => String(text).replace(/^[ \t]*\{\s*key\s*:[^}]*\}[ \t]*\r?\n?/gim, "");
+
+// ---- sbpBody ----
+  const sbpBody = text => sbpStripKey(text).replace(/^\n+/, "");
 
   const EN = {
     "วางใบคอร์ดที่คุณมีอยู่ แล้วแปลงเป็นฟอร์แมต ChordPro บันทึกเป็น <b>.txt</b> หรือส่งออกเป็น <b>.sbp</b> ที่ SongBookPro นำเข้าได้ทันที · ทำงานในเบราว์เซอร์ของคุณทั้งหมด ไม่มีการส่งไฟล์ขึ้นเซิร์ฟเวอร์ใคร เปิดจากไฟล์ในเครื่องแบบออฟไลน์ก็ได้": "Paste a chord sheet you already have and turn it into ChordPro. Save it as <b>.txt</b>, or export a <b>.sbp</b> that SongBookPro imports directly · everything runs in your own browser, nothing is uploaded anywhere, and it works offline from a local file",
@@ -1118,8 +1139,11 @@
       name: chordTitle(),
       subTitle: (((el("chord-artist") || {}).value || "").trim()
                  || directive(content, "artist")),
-      author: "", content, hash: md5(new TextEncoder().encode(content)),
-      key: 0, KeyShift: 0, Capo: 0,
+      // คีย์ไปอยู่ในช่องที่ SongBookPro อ่านจริง ส่วนบรรทัด {key:} ตัดออกจากเนื้อ
+      // เพราะโปรแกรมไม่ได้อ่าน และมันไม่ขยับตามตอนเปลี่ยนคีย์ เหลือไว้มีแต่จะหลอกตา
+      author: "", content: sbpBody(content),
+      hash: md5(new TextEncoder().encode(sbpBody(content))),
+      key: sbpKeyNo(directive(content, "key")), KeyShift: 0, Capo: 0,
       tempo, TempoInt: Number(tempo) || 0,
       timeSig: directive(content, "time"),
       Duration: 0, Duration2: 0, SongNumber: 0,
