@@ -1449,7 +1449,8 @@
   addEventListener("keydown", (event) => { if (event.key === "Escape") popupClose(); });
 
   // ================= ภาษา =================
-  Object.assign(I18N, EN);
+  // ใส่คีย์ที่บีบช่องว่างแล้ว ให้ตรงกับที่ langKey ใช้ตอนค้นหา
+  for (const [k, v] of Object.entries(EN)) I18N[normKey(k)] = v;
   if (el("lang-th")) el("lang-th").addEventListener("click", () => setLang("th"));
   if (el("lang-en")) el("lang-en").addEventListener("click", () => setLang("en"));
   {
