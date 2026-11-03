@@ -945,12 +945,26 @@
   }
 
 // ---- sbpKeyNo ----
+  /**
+   * ชื่อคีย์ -> เลขของ SongBookPro · อ่านไม่ออกคืน 0 ซึ่งคือ A
+   *
+   * ช่องนี้เก็บคีย์เมเจอร์ ไม่ได้เก็บโทนิก · เพลงไมเนอร์จึงต้องแปลงเป็น
+   * เมเจอร์คู่ขนานก่อน คือบวกสามครึ่งเสียง · Em ใช้บันไดเสียงเดียวกับ G
+   * จึงเก็บเป็น G ไม่ใช่ E
+   *
+   * ยืนยันจากไฟล์จริงที่ SongBookPro เขียนเอง · เพลงที่จบด้วย Dm เก็บเป็นเลข 8
+   * ซึ่งคือ F ไม่ใช่ 5 ที่เป็น D
+   */
   function sbpKeyNo(name) {
-    const hit = String(name || "").trim().match(/^([A-G])([#b]?)/);
+    const text = String(name || "").trim();
+    const hit = text.match(/^([A-G])([#b]?)/);
     if (!hit) return 0;
     const pitch = SBP_FLATS[hit[1] + hit[2]] || hit[1] + hit[2];
     const at = SBP_KEYS.indexOf(pitch);
-    return at < 0 ? 0 : at;
+    if (at < 0) return 0;
+    // m คือไมเนอร์ แต่ maj คือเมเจอร์ ต้องไม่สับกัน
+    const minor = /^(m(?!aj)|min)/i.test(text.slice(hit[0].length));
+    return minor ? (at + 3) % 12 : at;
   }
 
 // ---- BUSK_HOST ----
@@ -1012,6 +1026,7 @@
     "ช่อง {0}": "Channel {0}",
     "พบ {0} เพลง": "{0} song[s] found",
     "{0} เพลง": "{0} song[s]",
+    "{0} · {1} เสียง · {2}": "{0} · {1} sounds · {2}",
     "มาจากไฟล์": "from file",
     "{0} จาก {1} ช่อง": "{0} of {1} slots",
     "{0} ไบต์": "{0} byte[s]",

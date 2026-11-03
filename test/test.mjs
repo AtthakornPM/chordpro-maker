@@ -192,7 +192,16 @@ console.log("\n[7b] คีย์ — ต้องไปอยู่ในช่�
     check(`คีย์ ${name} คือเลข ${no}`, app.sbpKeyNo(name), no);
   check("แฟลตกับชาร์ปเสียงเดียวกันได้เลขเดียวกัน",
         [app.sbpKeyNo("Bb"), app.sbpKeyNo("Eb")], [app.sbpKeyNo("A#"), app.sbpKeyNo("D#")]);
-  check("ชื่อคีย์ที่มีหางต่อท้ายก็อ่านรากได้", app.sbpKeyNo("Am"), 0);
+  // ช่อง key เก็บคีย์เมเจอร์ ไม่ได้เก็บโทนิก · เพลงไมเนอร์ต้องแปลงเป็นเมเจอร์คู่ขนาน
+  // หลักฐานจากไฟล์ที่ SongBookPro เขียนเอง · เพลงที่จบด้วย Dm เก็บเป็นเลข 8 ซึ่งคือ F
+  for (const [minor, major] of [["Am", "C"], ["Cm", "D#"], ["Dm", "F"],
+                                ["Em", "G"], ["F#m", "A"], ["Bbm", "C#"]])
+    check(`${minor} เก็บเป็น ${major}`, app.sbpKeyNo(minor), app.sbpKeyNo(major));
+  check("Em ได้ 10 ซึ่งคือ G", app.sbpKeyNo("Em"), 10);
+  // maj ขึ้นต้นด้วย m เหมือนกัน ต้องไม่สับกับไมเนอร์
+  check("Amaj ยังเป็นเมเจอร์", app.sbpKeyNo("Amaj"), 0);
+  check("Amin เป็นไมเนอร์", app.sbpKeyNo("Amin"), 3);
+  check("เมเจอร์ไม่ขยับ", [app.sbpKeyNo("A"), app.sbpKeyNo("G")], [0, 10]);
   check("อ่านไม่ออกคืนศูนย์", app.sbpKeyNo("ไม่ใช่คีย์"), 0);
 
   // บรรทัด {key:} ไม่ติดไปในไฟล์ · โปรแกรมไม่ได้อ่าน และไม่ขยับตอนเปลี่ยนคีย์
@@ -213,6 +222,9 @@ console.log("\n[7b] คีย์ — ต้องไปอยู่ในช่�
   check("hash ตรงกับเนื้อที่เก็บ", song.hash, app.md5(enc(song.content)));
   check("ยังไม่ได้เปลี่ยนคีย์ KeyShift เป็นศูนย์", song.KeyShift, 0);
   check("ไม่มีบรรทัดคีย์ก็ยังเขียนได้", app.sbpSong("{title: ก}\n").key, 0);
+  // ทั้งเส้นทาง · {key: Em} ในเนื้อต้องออกมาเป็นเลขของ G
+  check("เพลงไมเนอร์ได้เลขของเมเจอร์คู่ขนาน",
+        app.sbpSong("{title: แร้งคอย}\n{key: Em}\n").key, 10);
 }
 
 console.log("\n[8] ไฟล์ .sbp ทั้งไฟล์ — เป็น ZIP ที่มีสามรายการ");
